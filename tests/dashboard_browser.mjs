@@ -76,11 +76,22 @@ const capHealth=await plotHealth("capitalNavChart",2);
 assertHealthy("capitalNavChart",capHealth,2);
 const capData=await page.$eval("#capitalNavChart",el=>({
   n0:el.data?.[0]?.y?.length,
+  finite0:(el.data?.[0]?.y||[]).map(Number).filter(Number.isFinite).length,
+  finite1:(el.data?.[1]?.y||[]).map(Number).filter(Number.isFinite).length,
+  firstY:(el.data?.[0]?.y||[]).slice(0,8),
+  firstX:(el.data?.[0]?.x||[]).slice(0,8),
   firstDate:el.data?.[0]?.x?.[0],
   lastDate:el.data?.[0]?.x?.at(-1),
   final:Number(el.data?.[0]?.y?.at(-1)),
-  coreFinal:Number(el.data?.[1]?.y?.at(-1))
+  coreFinal:Number(el.data?.[1]?.y?.at(-1)),
+  fullData:(el._fullData||[]).map(t=>({type:t.type,mode:t.mode,visible:t.visible,length:t._length,xaxis:t.xaxis,yaxis:t.yaxis,line:t.line})),
+  xRange:el._fullLayout?.xaxis?.range,
+  yRange:el._fullLayout?.yaxis?.range,
+  xType:el._fullLayout?.xaxis?.type,
+  calcLens:(el.calcdata||[]).map(a=>a?.length),
+  calcFirst:(el.calcdata||[]).map(a=>a?.slice(0,3).map(p=>({x:p?.x,y:p?.y,v:p?.v})))
 }));
+console.log("CAPITAL_BROWSER_DEBUG",JSON.stringify(capData));
 if(capData.n0!==1764||capData.firstDate!=="2019-09-05"||capData.lastDate!=="2026-09-11")
   throw new Error("Capital daily history boundary/length mismatch: "+JSON.stringify(capData));
 if(Math.abs(capData.final-5.280261504516695)>1e-10)
