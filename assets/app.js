@@ -76,8 +76,14 @@ function bindBoundedTimeZoom(id,dates,minPts=30,syncIds=[],groupKey=id,onRange=n
 }
 function boundedX(dates,range=null,slider=false){
   return {...baseLayout.xaxis,
+    type:"date",
     range:range||[dates[0],dates.at(-1)],
     autorange:false,
+    tickformatstops:[
+      {dtickrange:[null,86400000*45],value:"%b %d"},
+      {dtickrange:[86400000*45,86400000*370],value:"%b %Y"},
+      {dtickrange:[86400000*370,null],value:"%Y"}
+    ],
     rangeslider:slider?{visible:true,thickness:.08}:undefined
   };
 }
