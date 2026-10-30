@@ -28,6 +28,8 @@ jobs:
       - name: Validate dashboard
         run: |
           node --check assets/app.js
+          npm install --no-save --ignore-scripts jsdom@25.0.1 >/dev/null
+          node tests/dashboard_smoke.mjs
           python -m json.tool data/summary.json >/dev/null
           python -m json.tool data/strategy_spec.json >/dev/null
           python -m json.tool data/forward_status.json >/dev/null
