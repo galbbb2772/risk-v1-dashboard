@@ -25,28 +25,52 @@ const csv=path=>fetch(path+"?ts="+Date.now(),{cache:"no-store"}).then(r=>r.text(
 const json=path=>fetch(path+"?ts="+Date.now(),{cache:"no-store"}).then(r=>r.json());
 function metric(label,value,cls=""){return "<div class='metric'><span class='small'>"+esc(label)+"</span><b class='"+cls+"'>"+esc(value)+"</b></div>"}
 function table(rows,cols){return "<table><thead><tr>"+cols.map(c=>"<th>"+c[0]+"</th>").join("")+"</tr></thead><tbody>"+rows.map(r=>"<tr>"+cols.map((c,i)=>"<td class='"+(i===0?"left":"")+"'>"+c[1](r)+"</td>").join("")+"</tr>").join("")+"</tbody></table>"}
-function nearestIndex(dates,date){const t=Date.parse(date);let best=0,dist=Infinity;dates.forEach((d,i)=>{const z=Math.abs(Date.parse(d)-t);if(z<dist){dist=z;best=i}});return best}
-function clampRange(dates,a,b,minPts=30){let lo=nearestIndex(dates,String(a).slice(0,10)),hi=nearestIndex(dates,String(b).slice(0,10));if(lo>hi)[lo,hi]=[hi,lo];const need=Math.min(minPts,dates.length);if(hi-lo+1<need){const mid=Math.round((lo+hi)/2);lo=Math.max(0,mid-Math.floor(need/2));hi=Math.min(dates.length-1,lo+need-1);lo=Math.max(0,hi-need+1)}return[dates[lo],dates[hi]]}
+function toISODate(v){
+  if(v==null)return "";
+  if(typeof v==="number")return new Date(v).toISOString().slice(0,10);
+  const str=String(v);
+  const m=str.match(/^\d{4}-\d{2}-\d{2}/);
+  if(m)return m[0];
+  const t=Date.parse(str);
+  return Number.isFinite(t)?new Date(t).toISOString().slice(0,10):str.slice(0,10);
+}
+function nearestIndex(dates,date){
+  const iso=toISODate(date),t=Date.parse(iso);let best=0,dist=Infinity;
+  dates.forEach((d,i)=>{const z=Math.abs(Date.parse(d)-t);if(z<dist){dist=z;best=i}});
+  return best;
+}
+function clampRange(dates,a,b,minPts=30){
+  let lo=nearestIndex(dates,a),hi=nearestIndex(dates,b);if(lo>hi)[lo,hi]=[hi,lo];
+  const need=Math.min(Math.max(2,minPts),dates.length);
+  if(hi-lo+1<need){
+    const mid=Math.round((lo+hi)/2);
+    lo=Math.max(0,mid-Math.floor(need/2));
+    hi=Math.min(dates.length-1,lo+need-1);
+    lo=Math.max(0,hi-need+1);
+  }
+  return[dates[lo],dates[hi]];
+}
 function presetRange(dates,key){
   if(key==="ALL")return[dates[0],dates.at(-1)];
   const days={"1M":31,"3M":92,"6M":183,"12M":366,"3Y":1096,"5Y":1827}[key]||366;
   const start=new Date(Date.parse(dates.at(-1))-days*86400000).toISOString().slice(0,10);
-  return[dates[Math.max(0,nearestIndex(dates,start))],dates.at(-1)];
+  return clampRange(dates,start,dates.at(-1),30);
 }
-function bindBoundedTimeZoom(id,dates,minPts=30,syncIds=[]){
+const zoomGroups={};
+function bindBoundedTimeZoom(id,dates,minPts=30,syncIds=[],groupKey=id,onRange=null){
   const el=$("#"+id); if(!el||el.__boundedZoom)return;
-  const bounds=[dates[0],dates.at(-1)];
-  let busy=false;
+  const state=zoomGroups[groupKey]||(zoomGroups[groupKey]={busy:false});
   el.on("plotly_relayout",ev=>{
-    if(busy)return;
+    if(state.busy)return;
     let a=ev["xaxis.range[0]"],b=ev["xaxis.range[1]"];
-    if(ev["xaxis.autorange"]){a=bounds[0];b=bounds[1]}
+    if(ev["xaxis.autorange"]){a=dates[0];b=dates.at(-1)}
     if(a==null||b==null)return;
     const safe=clampRange(dates,a,b,minPts);
     const targets=[id,...syncIds].filter((v,i,arr)=>arr.indexOf(v)===i);
-    busy=true;
+    state.busy=true;
     Promise.all(targets.map(t=>Plotly.relayout(t,{"xaxis.range":safe,"xaxis.autorange":false})))
-      .finally(()=>busy=false);
+      .then(()=>onRange&&onRange(safe))
+      .finally(()=>state.busy=false);
   });
   el.__boundedZoom=true;
 }
@@ -54,10 +78,22 @@ function boundedX(dates,range=null,slider=false){
   return {...baseLayout.xaxis,
     range:range||[dates[0],dates.at(-1)],
     autorange:false,
-    minallowed:dates[0],
-    maxallowed:dates.at(-1),
     rangeslider:slider?{visible:true,thickness:.08}:undefined
   };
+}
+function visibleRange(dates,seriesList,range,padFrac=.06){
+  const lo=nearestIndex(dates,range[0]),hi=nearestIndex(dates,range[1]);
+  const vals=[];
+  for(const arr of seriesList){
+    for(let i=lo;i<=hi&&i<arr.length;i++){
+      const v=num(arr[i]);if(Number.isFinite(v))vals.push(v);
+    }
+  }
+  if(!vals.length)return null;
+  let mn=Math.min(...vals),mx=Math.max(...vals);
+  if(mn===mx){const p=Math.max(Math.abs(mn)*.03,.01);return[mn-p,mx+p]}
+  const p=(mx-mn)*padFrac;
+  return[mn-p,mx+p];
 }
 function drawdown(nav){let peak=-Infinity;return nav.map(v=>{v=num(v);peak=Math.max(peak,v);return peak>0?(v/peak-1)*100:0})}
 function bindTabs(){$$(".tab").forEach(b=>b.onclick=()=>{$$(".tab").forEach(x=>x.classList.remove("active"));$$(".panel").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("#"+b.dataset.tab).classList.add("active");setTimeout(()=>window.dispatchEvent(new Event("resize")),100)})}
@@ -88,9 +124,19 @@ function renderHistory(range){
     {x:LEGACYDD.map(r=>r.date),y:LEGACYDD.map(r=>num(r.exposure_100)),name:"100% Exposure · monthly DD",type:"scatter",mode:"lines",line:{width:1.5,dash:"dot",color:COLORS.full}}
   ];
   Plotly.react("historyDDChart",dd,{...baseLayout,xaxis:boundedX(dates,safe,false),yaxis:{...baseLayout.yaxis,title:"Drawdown %",ticksuffix:"%",fixedrange:true}},plotCfg);
-  bindBoundedTimeZoom("historyChart",dates,30,["historyDDChart"]);
-  bindBoundedTimeZoom("historyDDChart",dates,30,["historyChart"]);
-  const h=$("#historyChart"); if(!h.__dateSync){h.on("plotly_relayout",ev=>{const a=ev["xaxis.range[0]"],b=ev["xaxis.range[1]"];if(a!=null&&b!=null){const r=clampRange(dates,a,b,30);historyRange=r;$("#historyStart").value=r[0];$("#historyEnd").value=r[1]}});h.__dateSync=true}
+  const applyVisibleY=safe=>{
+    historyRange=safe;$("#historyStart").value=safe[0];$("#historyEnd").value=safe[1];
+    const navY=visibleRange(dates,[navSame,navStrict,navT6],safe,.08);
+    const ddSame=drawdown(navSame),ddStrict=drawdown(navStrict),ddT6=drawdown(navT6);
+    const ddY=visibleRange(dates,[ddSame,ddStrict,ddT6],safe,.08);
+    const jobs=[];
+    if(navY)jobs.push(Plotly.relayout("historyChart",{"yaxis.range":navY,"yaxis.autorange":false}));
+    if(ddY)jobs.push(Plotly.relayout("historyDDChart",{"yaxis.range":[Math.min(ddY[0],-0.1),Math.min(0.5,ddY[1]+0.2)],"yaxis.autorange":false}));
+    return Promise.all(jobs);
+  };
+  bindBoundedTimeZoom("historyChart",dates,30,["historyDDChart"],"history",applyVisibleY);
+  bindBoundedTimeZoom("historyDDChart",dates,30,["historyChart"],"history",applyVisibleY);
+  applyVisibleY(safe);
   $("#historyCards").innerHTML=[
     metric("Fixed 3-slot CAGR","9.48%"),
     metric("Risk V1 10/14 CAGR","10.78%"),
@@ -101,11 +147,25 @@ function renderHistory(range){
   ].join("");
   $("#versionTable").innerHTML=table(VERS,[["版本",r=>esc(r.label)],["分类",r=>esc(r.class)],["CAGR",r=>pct(r.cagr_pct)],["MaxDD",r=>pct(r.max_dd_pct)],["Sharpe",r=>fmt(r.sharpe,2)],["曲线证据",r=>r.curve_available?"<span class='pill'>有</span>":"<span class='pill'>指标-only</span>"],["状态",r=>esc(r.status)]]);
 }
+function setHistoryWindow(range){
+  const dates=EXEC.map(r=>r.date),safe=clampRange(dates,range[0],range[1],30);
+  historyRange=safe;$("#historyStart").value=safe[0];$("#historyEnd").value=safe[1];
+  const navSame=EXEC.map(r=>num(r.same_close)),navStrict=EXEC.map(r=>num(r.strict_next_open)),navT6=EXEC.map(r=>num(r.next_open_t6));
+  const navY=visibleRange(dates,[navSame,navStrict,navT6],safe,.08);
+  const ddY=visibleRange(dates,[drawdown(navSame),drawdown(navStrict),drawdown(navT6)],safe,.08);
+  const jobs=[
+    Plotly.relayout("historyChart",{"xaxis.range":safe,"xaxis.autorange":false}),
+    Plotly.relayout("historyDDChart",{"xaxis.range":safe,"xaxis.autorange":false})
+  ];
+  if(navY)jobs.push(Plotly.relayout("historyChart",{"yaxis.range":navY,"yaxis.autorange":false}));
+  if(ddY)jobs.push(Plotly.relayout("historyDDChart",{"yaxis.range":[Math.min(ddY[0],-0.1),Math.min(0.5,ddY[1]+0.2)],"yaxis.autorange":false}));
+  return Promise.all(jobs);
+}
 function bindHistory(){
   const dates=EXEC.map(r=>r.date);$("#historyStart").min=dates[0];$("#historyStart").max=dates.at(-1);$("#historyEnd").min=dates[0];$("#historyEnd").max=dates.at(-1);
-  $("#historyPresets").onclick=e=>{const b=e.target.closest("button[data-range]");if(!b)return;$$('#historyPresets button').forEach(x=>x.classList.toggle("active",x===b));renderHistory(presetRange(dates,b.dataset.range))};
-  $("#historyApply").onclick=()=>renderHistory([$("#historyStart").value,$("#historyEnd").value]);
-  $("#historyReset").onclick=()=>{$$("#historyPresets button").forEach(x=>x.classList.toggle("active",x.dataset.range==="ALL"));renderHistory([dates[0],dates.at(-1)])};
+  $("#historyPresets").onclick=e=>{const b=e.target.closest("button[data-range]");if(!b)return;$("#historyPresets button").forEach(x=>x.classList.toggle("active",x===b));setHistoryWindow(presetRange(dates,b.dataset.range))};
+  $("#historyApply").onclick=()=>setHistoryWindow([$("#historyStart").value,$("#historyEnd").value]);
+  $("#historyReset").onclick=()=>{$("#historyPresets button").forEach(x=>x.classList.toggle("active",x.dataset.range==="ALL"));setHistoryWindow([dates[0],dates.at(-1)])};
 }
 
 function renderTreasury(){
@@ -156,6 +216,14 @@ function renderCapital(){
     metric("平均股票暴露",pct(CAM.avg_exposure_pct)),
     metric("Risk+互动增长占比",pct(CAM.riskv1_incremental_log_growth_share_pct))
   ].join("");
+  const [capStart,capEnd]=CAM.period.split(" to ");
+  const capDates=[capStart],capNav=[1];let cap=1;
+  CAPAN.forEach(r=>{cap*=1+num(r.return_pct)/100;capDates.push(String(r.year)===String(capEnd).slice(0,4)?capEnd:String(r.year)+"-12-31");capNav.push(cap)});
+  Plotly.react("capitalNavChart",[
+    {x:capDates,y:capNav,name:"Capital Layer V1 · audited annual checkpoints",type:"scatter",mode:"lines+markers",line:{width:3,color:COLORS.gold},marker:{size:8}},
+    {x:[capEnd],y:[num(CAM.ending_multiple)],name:"Final audited NAV",type:"scatter",mode:"markers+text",text:[fmt(CAM.ending_multiple,3)+"x"],textposition:"top left",marker:{size:13,color:COLORS.tbill,symbol:"diamond"}}
+  ],{...baseLayout,xaxis:boundedX(capDates,null,false),yaxis:{...baseLayout.yaxis,title:"Audited NAV multiple",range:[0.8,Math.ceil(num(CAM.ending_multiple)*1.12*10)/10],fixedrange:true}},plotCfg);
+  bindBoundedTimeZoom("capitalNavChart",capDates,3,[],"capital-nav");
   const x=CMC.map(r=>num(r.sleeve)*100);
   Plotly.react("capitalMarginalChart",[
     {x,y:CMC.map(r=>num(r.cagr_pct)),name:"CAGR %",type:"scatter",mode:"lines+markers",line:{width:2.4,color:COLORS.strict}},
