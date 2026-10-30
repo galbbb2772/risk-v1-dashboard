@@ -4,7 +4,7 @@ const fmt=(v,d=2)=>Number.isFinite(num(v))?num(v).toFixed(d):"—";
 const pct=(v,d=2)=>Number.isFinite(num(v))?num(v).toFixed(d)+"%":"—";
 const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 const COLORS={same:"#9fb7d9",strict:"#8cb8ff",t6:"#b59cff",tbill:"#56d6a4",legacyTbill:"#76c9b0",full:"#ff7d89",gold:"#f3c76b",orange:"#ff9a72",muted:"#8594ab"};
-const baseLayout={paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(0,0,0,0)",font:{color:"#cad5e7"},margin:{l:62,r:28,t:34,b:58},hovermode:"x unified",legend:{orientation:"h",y:1.14,x:0},dragmode:"pan",xaxis:{gridcolor:"#182235"},yaxis:{gridcolor:"#182235"}};
+const baseLayout={autosize:true,paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(0,0,0,0)",font:{color:"#cad5e7"},margin:{l:62,r:28,t:34,b:58},hovermode:"x unified",legend:{orientation:"h",y:1.14,x:0},dragmode:"pan",xaxis:{gridcolor:"#182235",automargin:true},yaxis:{gridcolor:"#182235",automargin:true}};
 const plotCfg={responsive:true,displaylogo:false,displayModeBar:false,scrollZoom:true,doubleClick:"reset"};
 
 function parseCSV(text){
@@ -110,16 +110,31 @@ function visibleTraceRange(traces,range,padFrac=.06){
   const p=(mx-mn)*padFrac;return[mn-p,mx+p];
 }
 function drawdown(nav){let peak=-Infinity;return nav.map(v=>{v=num(v);peak=Math.max(peak,v);return peak>0?(v/peak-1)*100:0})}
+const renderedPanels=new Set(["history"]);
 function refreshVisiblePlots(panelId){
-  const panel=$("#"+panelId); if(!panel)return;
-  setTimeout(()=>{
+  const panel=document.getElementById(panelId); if(!panel)return;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
     panel.querySelectorAll(".chart").forEach(el=>{
       if(el.data&&window.Plotly?.Plots?.resize){
         try{window.Plotly.Plots.resize(el)}catch(e){console.warn("Plot resize failed",el.id,e)}
       }
     });
     window.dispatchEvent(new Event("resize"));
-  },80);
+  }));
+}
+function renderPanelWhenVisible(panelId){
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    if(!window.__dashboardReady)return;
+    if(!renderedPanels.has(panelId)){
+      if(panelId==="capital")renderCapital();
+      else if(panelId==="treasury")renderTreasury();
+      else if(panelId==="trades")renderTrades(document.getElementById("tradeSearch")?.value||"");
+      else if(panelId==="forward")renderForward();
+      else if(panelId==="rules")renderRules();
+      renderedPanels.add(panelId);
+    }
+    refreshVisiblePlots(panelId);
+  }));
 }
 function bindTabs(){
   const tabs=[...document.querySelectorAll(".tab")];
@@ -131,13 +146,7 @@ function bindTabs(){
       b.classList.add("active");
       const panel=document.getElementById(b.dataset.tab);
       if(panel)panel.classList.add("active");
-      if(window.__dashboardReady){
-        if(b.dataset.tab==="capital")renderCapital();
-        else if(b.dataset.tab==="treasury")renderTreasury();
-        else if(b.dataset.tab==="trades")renderTrades(document.getElementById("tradeSearch")?.value||"");
-        else if(b.dataset.tab==="forward")renderForward();
-      }
-      refreshVisiblePlots(b.dataset.tab);
+      renderPanelWhenVisible(b.dataset.tab);
     };
   });
 }
@@ -381,7 +390,9 @@ function renderRules(){
   ]);
   $("#asof").textContent="HIST "+S.historical_window.end+" · FWD "+(FSTAT.official_nav_rows?FNAV.at(-1)?.date:"PENDING");
   renderHistory([EXEC[0].date,EXEC.at(-1).date]);bindHistory();
-  renderTreasury();renderCapital();renderTrades();renderForward();renderRules();
   window.__dashboardReady=true;
-  $("#tradeSearch").oninput=e=>renderTrades(e.target.value);
+  $("#tradeSearch").oninput=e=>{
+    if(renderedPanels.has("trades"))renderTrades(e.target.value);
+  };
+  refreshVisiblePlots("history");
 })().catch(err=>{console.error(err);document.body.insertAdjacentHTML("beforeend","<div class='wrap bad'>Dashboard load error: "+esc(err.message||err)+"</div>")});
