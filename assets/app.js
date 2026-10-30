@@ -199,7 +199,8 @@ function renderForward(){
   ].join("");
   if(FNAV.length){
     $("#forwardEmpty").style.display="none";
-    Plotly.react("forwardChart",[{x:FNAV.map(r=>r.date),y:FNAV.map(r=>num(r.nav)),name:"Risk V1 Forward",type:"scatter",mode:"lines+markers",line:{width:2.5,color:COLORS.strict}}],{...baseLayout,xaxis:boundedX(FNAV.map(r=>r.date),null,true),yaxis:{...baseLayout.yaxis,title:"Forward NAV",fixedrange:true}},plotCfg);\n    bindBoundedTimeZoom("forwardChart",FNAV.map(r=>r.date),Math.min(10,FNAV.length));
+    Plotly.react("forwardChart",[{x:FNAV.map(r=>r.date),y:FNAV.map(r=>num(r.nav)),name:"Risk V1 Forward",type:"scatter",mode:"lines+markers",line:{width:2.5,color:COLORS.strict}}],{...baseLayout,xaxis:boundedX(FNAV.map(r=>r.date),null,true),yaxis:{...baseLayout.yaxis,title:"Forward NAV",fixedrange:true}},plotCfg);
+    bindBoundedTimeZoom("forwardChart",FNAV.map(r=>r.date),Math.min(10,FNAV.length));
   }else{
     Plotly.purge("forwardChart");$("#forwardEmpty").style.display="block";$("#forwardEmpty").innerHTML="<b>暂无正式 Forward NAV</b><br>冻结引擎与历史契约已验证通过；目前仍没有 post-recovery 的正式扫描行。";
   }
