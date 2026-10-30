@@ -21,7 +21,15 @@ await page.setViewport({width:1440,height:1100,deviceScaleFactor:1});
 
 const errors=[];
 page.on("pageerror",e=>errors.push("pageerror: "+e.message));
-page.on("console",m=>{if(m.type()==="error")errors.push("console: "+m.text())});
+page.on("console",m=>{
+  if(m.type()==="error"&&!m.text().startsWith("Failed to load resource")) errors.push("console: "+m.text());
+});
+page.on("response",res=>{
+  const status=res.status(),url=res.url();
+  if(status>=400 && !url.endsWith("/favicon.ico") && !url.startsWith("data:")){
+    errors.push("http "+status+": "+url);
+  }
+});
 
 await page.goto("http://127.0.0.1:8000/",{waitUntil:"networkidle2",timeout:45000});
 await page.waitForFunction(()=>document.querySelector("#historyChart")?.data?.length>=6,{timeout:20000});
