@@ -178,9 +178,9 @@ function setHistoryWindow(range){
 }
 function bindHistory(){
   const dates=EXEC.map(r=>r.date);$("#historyStart").min=dates[0];$("#historyStart").max=dates.at(-1);$("#historyEnd").min=dates[0];$("#historyEnd").max=dates.at(-1);
-  $("#historyPresets").onclick=e=>{const b=e.target.closest("button[data-range]");if(!b)return;$("#historyPresets button").forEach(x=>x.classList.toggle("active",x===b));setHistoryWindow(presetRange(dates,b.dataset.range))};
+  $("#historyPresets").onclick=e=>{const b=e.target.closest("button[data-range]");if(!b)return;$$("#historyPresets button").forEach(x=>x.classList.toggle("active",x===b));setHistoryWindow(presetRange(dates,b.dataset.range))};
   $("#historyApply").onclick=()=>setHistoryWindow([$("#historyStart").value,$("#historyEnd").value]);
-  $("#historyReset").onclick=()=>{$("#historyPresets button").forEach(x=>x.classList.toggle("active",x.dataset.range==="ALL"));setHistoryWindow([dates[0],dates.at(-1)])};
+  $("#historyReset").onclick=()=>{$$("#historyPresets button").forEach(x=>x.classList.toggle("active",x.dataset.range==="ALL"));setHistoryWindow([dates[0],dates.at(-1)])};
 }
 
 function renderTreasury(){
