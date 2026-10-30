@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Risk V1 Research Dashboard</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <div><h1>Risk V1 Research Dashboard</h1><div class="muted">Strict Next-Open · 3M Treasury · 308 trades · Forward OOS</div></div>
+  <div id="asof" class="badge">LOADING</div>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" data-tab="overview">总览</button>
+  <button class="tab" data-tab="treasury">3M 美债现金层</button>
+  <button class="tab" data-tab="trades">308 笔交易</button>
+  <button class="tab" data-tab="forward">Forward OOS</button>
+  <button class="tab" data-tab="rules">规则</button>
+</nav>
+
+<section id="overview" class="panel active">
+  <div id="overviewCards" class="kpis"></div>
+  <div class="card section">
+    <div class="sectionHead"><div><h2>历史净值</h2><div class="tiny">Risk V1 Strict Next-Open vs Risk V1 + 3M Treasury。可拖动、滑块和时间选择。</div></div><button id="historyReset" class="ghost">重置</button></div>
+    <div class="toolbar compact">
+      <div class="range" id="historyPresets"><button data-range="1Y">1Y</button><button data-range="3Y">3Y</button><button data-range="5Y">5Y</button><button class="active" data-range="ALL">ALL</button></div>
+      <div class="dates"><input id="historyStart" type="date"><span>→</span><input id="historyEnd" type="date"><button id="historyApply">应用</button></div>
+    </div>
+    <div id="historyChart" class="chart"></div>
+  </div>
+  <div class="card section"><h2>历史 Drawdown</h2><div id="ddChart" class="chart smallchart"></div></div>
+  <div class="card section"><h2>年度收益</h2><div id="annualChart" class="chart mediumchart"></div></div>
+  <div class="note section">历史结果只用于研究与比较；Forward OOS 单独记账，不允许历史回填。</div>
+</section>
+
+<section id="treasury" class="panel">
+  <div id="treasuryCards" class="kpis"></div>
+  <div class="card section"><h2>累计表现对比</h2><div class="tiny">月度快照：Risk V1、Risk V1 + 3M Treasury、S&P 500、Nasdaq Composite、Dow Jones。</div><div id="benchmarkChart" class="chart"></div></div>
+  <div class="card section"><h2>模型版本对比</h2><div id="modelTable" class="tablewrap"></div></div>
+  <div class="note section">3M Treasury 是闲置现金管理层，不是第二个独立 Alpha；它必须和纯 Risk Alpha 分开记录。</div>
+</section>
+
+<section id="trades" class="panel">
+  <div id="tradeCards" class="kpis"></div>
+  <div class="toolbar card section">
+    <div class="control grow"><label>搜索</label><input id="tradeSearch" type="search" placeholder="Ticker / 日期 / slot"></div>
+    <div class="control"><label>结果</label><div id="tradeCount" class="badge soft"></div></div>
+  </div>
+  <div class="card section"><div id="tradeTable" class="tablewrap tall"></div></div>
+</section>
+
+<section id="forward" class="panel">
+  <div id="forwardCards" class="kpis"></div>
+  <div class="card section"><h2>Forward OOS 净值</h2><div id="forwardChart" class="chart"></div><div id="forwardEmpty" class="empty"></div></div>
+  <div class="card section"><h2>当前三槽位账户</h2><div id="slotTable" class="tablewrap"></div></div>
+  <div class="card section"><h2>正式 Forward 交易</h2><div id="forwardTradeTable" class="tablewrap"></div></div>
+  <div id="forwardNote" class="note section"></div>
+</section>
+
+<section id="rules" class="panel">
+  <div class="card section prose" id="rulesContent"></div>
+</section>
+</div>
+<script src="assets/app.js"></script>
+</body>
+</html>
