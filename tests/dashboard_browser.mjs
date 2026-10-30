@@ -40,7 +40,16 @@ async function plotHealth(id,minLines=1){
       dataCount:(el.data||[]).length,
       minLines,
       scatterHtml:(el.querySelector(".scatterlayer")?.innerHTML||"").slice(0,2500),
-      pathSummary:allPaths.slice(0,40).map(p=>({cls:p.getAttribute("class"),d:(p.getAttribute("d")||"").slice(0,180),len:(p.getAttribute("d")||"").length}))
+      pathSummary:allPaths.slice(0,40).map(p=>({cls:p.getAttribute("class"),d:(p.getAttribute("d")||"").slice(0,180),len:(p.getAttribute("d")||"").length})),
+      finiteCounts:(el.data||[]).map(t=>(t.y||[]).map(Number).filter(Number.isFinite).length),
+      firstValues:(el.data||[]).map(t=>({x:(t.x||[]).slice(0,4),y:(t.y||[]).slice(0,4)})),
+      fullData:(el._fullData||[]).map(t=>({type:t.type,mode:t.mode,visible:t.visible,length:t._length,xaxis:t.xaxis,yaxis:t.yaxis,line:t.line,connectgaps:t.connectgaps})),
+      calcLens:(el.calcdata||[]).map(a=>a?.length),
+      calcFirst:(el.calcdata||[]).map(a=>a?.slice(0,3).map(p=>({x:p?.x,y:p?.y,v:p?.v}))),
+      xRange:el._fullLayout?.xaxis?.range,
+      yRange:el._fullLayout?.yaxis?.range,
+      xType:el._fullLayout?.xaxis?.type,
+      yType:el._fullLayout?.yaxis?.type
     };
   },minLines);
 }
