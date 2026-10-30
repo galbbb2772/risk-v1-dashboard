@@ -157,6 +157,29 @@ function capitalAuditSeries(){
   if(nav.length)nav[nav.length-1]=num(CAM.ending_multiple);
   return {dates,nav,start:capStart,end:capEnd};
 }
+function renderCapitalSvg(targetId,height=280){
+  const host=document.getElementById(targetId); if(!host||!CAM||!CAPAN)return;
+  const ser=capitalAuditSeries(),W=1200,H=height,L=72,R=34,T=26,B=48;
+  const times=ser.dates.map(d=>Date.parse(d)),t0=Math.min(...times),t1=Math.max(...times);
+  const ymin=.8,ymax=Math.max(5.8,num(CAM.ending_multiple)*1.08);
+  const x=t=>L+(t-t0)/(t1-t0)*(W-L-R);
+  const y=v=>T+(ymax-v)/(ymax-ymin)*(H-T-B);
+  const pts=ser.nav.map((v,i)=>x(times[i]).toFixed(1)+","+y(v).toFixed(1)).join(" ");
+  const yTicks=[1,2,3,4,5];
+  const grids=yTicks.map(v=>`<line class="grid" x1="${L}" y1="${y(v)}" x2="${W-R}" y2="${y(v)}"/><text class="label" x="${L-12}" y="${y(v)+4}" text-anchor="end">${v.toFixed(1)}x</text>`).join("");
+  const dots=ser.nav.map((v,i)=>`<circle class="dot" cx="${x(times[i])}" cy="${y(v)}" r="${i===ser.nav.length-1?7:5}"/><text class="${i===ser.nav.length-1?"final":"value"}" x="${x(times[i])}" y="${y(v)-12}" text-anchor="${i===0?"start":i===ser.nav.length-1?"end":"middle"}">${v.toFixed(i===ser.nav.length-1?3:2)}x</text>`).join("");
+  const years=ser.dates.map((d,i)=>({d,i,y:d.slice(0,4)})).filter((o,i,a)=>i===0||i===a.length-1||o.y!==a[i-1].y);
+  const xlabels=years.map(o=>`<text class="label" x="${x(times[o.i])}" y="${H-16}" text-anchor="${o.i===0?"start":o.i===ser.dates.length-1?"end":"middle"}">${o.y}</text>`).join("");
+  host.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Capital Layer V1 audited NAV from 1.00x to ${num(CAM.ending_multiple).toFixed(4)}x">
+    ${grids}
+    <line class="axis" x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}"/>
+    <line class="axis" x1="${L}" y1="${T}" x2="${L}" y2="${H-B}"/>
+    <polyline class="line" points="${pts}"/>
+    ${dots}
+    ${xlabels}
+  </svg>`;
+  host.dataset.finalNav=num(CAM.ending_multiple).toFixed(10);
+}
 
 function renderHistory(range){
   const dates=EXEC.map(r=>r.date),safe=clampRange(dates,range[0],range[1],30);historyRange=safe;
@@ -203,6 +226,7 @@ function renderHistory(range){
     metric("历史交易",S.historical.selected_trades)
   ].join("");
   $("#versionTable").innerHTML=table(VERS,[["版本",r=>esc(r.label)],["分类",r=>esc(r.class)],["CAGR",r=>pct(r.cagr_pct)],["MaxDD",r=>pct(r.max_dd_pct)],["Sharpe",r=>fmt(r.sharpe,2)],["曲线证据",r=>r.curve_available?"<span class='pill'>有</span>":"<span class='pill'>指标-only</span>"],["状态",r=>esc(r.status)]]);
+  renderCapitalSvg("capitalHistoryFallback",250);
 }
 function setHistoryWindow(range){
   const dates=EXEC.map(r=>r.date),safe=clampRange(dates,range[0],range[1],30);
@@ -275,6 +299,7 @@ function renderCapital(){
     metric("平均股票暴露",pct(CAM.avg_exposure_pct)),
     metric("Risk+互动增长占比",pct(CAM.riskv1_incremental_log_growth_share_pct))
   ].join("");
+  renderCapitalSvg("capitalNavFallback",360);
   const capSeries=capitalAuditSeries(),capDates=capSeries.dates,capNav=capSeries.nav,capEnd=capSeries.end;
   Plotly.react("capitalNavChart",[
     {x:capDates,y:capNav,name:"Capital Layer V1 · audited annual checkpoints",type:"scatter",mode:"lines+markers",line:{width:3,color:COLORS.gold},marker:{size:8}},
