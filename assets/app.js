@@ -121,19 +121,26 @@ function refreshVisiblePlots(panelId){
     window.dispatchEvent(new Event("resize"));
   },80);
 }
-function bindTabs(){$(".tab").forEach(b=>b.onclick=()=>{
-  $(".tab").forEach(x=>x.classList.remove("active"));
-  $(".panel").forEach(x=>x.classList.remove("active"));
-  b.classList.add("active");
-  $("#"+b.dataset.tab).classList.add("active");
-  if(window.__dashboardReady){
-    if(b.dataset.tab==="capital")renderCapital();
-    else if(b.dataset.tab==="treasury")renderTreasury();
-    else if(b.dataset.tab==="trades")renderTrades($("#tradeSearch")?.value||"");
-    else if(b.dataset.tab==="forward")renderForward();
-  }
-  refreshVisiblePlots(b.dataset.tab);
-})}
+function bindTabs(){
+  const tabs=[...document.querySelectorAll(".tab")];
+  const panels=[...document.querySelectorAll(".panel")];
+  tabs.forEach(b=>{
+    b.onclick=()=>{
+      tabs.forEach(x=>x.classList.remove("active"));
+      panels.forEach(x=>x.classList.remove("active"));
+      b.classList.add("active");
+      const panel=document.getElementById(b.dataset.tab);
+      if(panel)panel.classList.add("active");
+      if(window.__dashboardReady){
+        if(b.dataset.tab==="capital")renderCapital();
+        else if(b.dataset.tab==="treasury")renderTreasury();
+        else if(b.dataset.tab==="trades")renderTrades(document.getElementById("tradeSearch")?.value||"");
+        else if(b.dataset.tab==="forward")renderForward();
+      }
+      refreshVisiblePlots(b.dataset.tab);
+    };
+  });
+}
 
 let S,RISK,TBILL,MODEL,ANNUAL,MONTHLY,TRADES,FSTAT,FNAV,FTR,ACCOUNT,SPEC,EXEC,LEGACY,LEGACYDD,VERS,CAM,CMC,CAPAN,CRS,CDDA,CDDE,CCORR,CREG,CWORST,CRISIS;
 let historyRange,historyBusy=false;
