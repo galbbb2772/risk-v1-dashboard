@@ -49,9 +49,10 @@ if(!document.querySelector("#historyCards")?.textContent.trim()) throw new Error
 if(!document.querySelector("#capitalCards")?.textContent.includes("5.280")) throw new Error("Capital 5.280 card missing");
 
 const hist=ensurePlotEl("historyChart");
-if((hist.data||[]).length<6) throw new Error("Expected >=6 history traces");
+if((hist.data||[]).length<7) throw new Error("Expected >=7 history traces including Capital Layer");
 const histMax=Math.max(...hist.data.flatMap(t=>(t.y||[]).map(Number).filter(Number.isFinite)));
-if(histMax<2.3) throw new Error("3M Treasury/high history line appears clipped/missing from data");
+if(!hist.data.some(t=>String(t.name||"").includes("Capital Layer V1"))) throw new Error("Capital Layer history trace missing");
+if(histMax<5.27) throw new Error("Capital Layer 5.28x history line is missing from main history chart");
 
 const cap=ensurePlotEl("capitalNavChart");
 const capMax=Math.max(...cap.data.flatMap(t=>(t.y||[]).map(Number).filter(Number.isFinite)));
