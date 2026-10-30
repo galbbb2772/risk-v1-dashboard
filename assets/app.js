@@ -95,6 +95,20 @@ function visibleRange(dates,seriesList,range,padFrac=.06){
   const p=(mx-mn)*padFrac;
   return[mn-p,mx+p];
 }
+function visibleTraceRange(traces,range,padFrac=.06){
+  const a=Date.parse(toISODate(range[0])),b=Date.parse(toISODate(range[1])),vals=[];
+  for(const tr of traces){
+    const xs=tr.x||[],ys=tr.y||[];
+    for(let i=0;i<Math.min(xs.length,ys.length);i++){
+      const t=Date.parse(toISODate(xs[i])),v=num(ys[i]);
+      if(t>=a&&t<=b&&Number.isFinite(v))vals.push(v);
+    }
+  }
+  if(!vals.length)return null;
+  let mn=Math.min(...vals),mx=Math.max(...vals);
+  if(mn===mx){const p=Math.max(Math.abs(mn)*.03,.01);return[mn-p,mx+p]}
+  const p=(mx-mn)*padFrac;return[mn-p,mx+p];
+}
 function drawdown(nav){let peak=-Infinity;return nav.map(v=>{v=num(v);peak=Math.max(peak,v);return peak>0?(v/peak-1)*100:0})}
 function bindTabs(){$$(".tab").forEach(b=>b.onclick=()=>{$$(".tab").forEach(x=>x.classList.remove("active"));$$(".panel").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("#"+b.dataset.tab).classList.add("active");setTimeout(()=>window.dispatchEvent(new Event("resize")),100)})}
 
@@ -126,9 +140,8 @@ function renderHistory(range){
   Plotly.react("historyDDChart",dd,{...baseLayout,xaxis:boundedX(dates,safe,false),yaxis:{...baseLayout.yaxis,title:"Drawdown %",ticksuffix:"%",fixedrange:true}},plotCfg);
   const applyVisibleY=safe=>{
     historyRange=safe;$("#historyStart").value=safe[0];$("#historyEnd").value=safe[1];
-    const navY=visibleRange(dates,[navSame,navStrict,navT6],safe,.08);
-    const ddSame=drawdown(navSame),ddStrict=drawdown(navStrict),ddT6=drawdown(navT6);
-    const ddY=visibleRange(dates,[ddSame,ddStrict,ddT6],safe,.08);
+    const navY=visibleTraceRange(traces,safe,.08);
+    const ddY=visibleTraceRange(dd,safe,.08);
     const jobs=[];
     if(navY)jobs.push(Plotly.relayout("historyChart",{"yaxis.range":navY,"yaxis.autorange":false}));
     if(ddY)jobs.push(Plotly.relayout("historyDDChart",{"yaxis.range":[Math.min(ddY[0],-0.1),Math.min(0.5,ddY[1]+0.2)],"yaxis.autorange":false}));
@@ -150,16 +163,18 @@ function renderHistory(range){
 function setHistoryWindow(range){
   const dates=EXEC.map(r=>r.date),safe=clampRange(dates,range[0],range[1],30);
   historyRange=safe;$("#historyStart").value=safe[0];$("#historyEnd").value=safe[1];
-  const navSame=EXEC.map(r=>num(r.same_close)),navStrict=EXEC.map(r=>num(r.strict_next_open)),navT6=EXEC.map(r=>num(r.next_open_t6));
-  const navY=visibleRange(dates,[navSame,navStrict,navT6],safe,.08);
-  const ddY=visibleRange(dates,[drawdown(navSame),drawdown(navStrict),drawdown(navT6)],safe,.08);
+  const hEl=$("#historyChart"),dEl=$("#historyDDChart");
+  const navY=visibleTraceRange(hEl?.data||[],safe,.08);
+  const ddY=visibleTraceRange(dEl?.data||[],safe,.08);
+  const state=zoomGroups.history||(zoomGroups.history={busy:false});
+  state.busy=true;
   const jobs=[
     Plotly.relayout("historyChart",{"xaxis.range":safe,"xaxis.autorange":false}),
     Plotly.relayout("historyDDChart",{"xaxis.range":safe,"xaxis.autorange":false})
   ];
   if(navY)jobs.push(Plotly.relayout("historyChart",{"yaxis.range":navY,"yaxis.autorange":false}));
   if(ddY)jobs.push(Plotly.relayout("historyDDChart",{"yaxis.range":[Math.min(ddY[0],-0.1),Math.min(0.5,ddY[1]+0.2)],"yaxis.autorange":false}));
-  return Promise.all(jobs);
+  return Promise.all(jobs).finally(()=>state.busy=false);
 }
 function bindHistory(){
   const dates=EXEC.map(r=>r.date);$("#historyStart").min=dates[0];$("#historyStart").max=dates.at(-1);$("#historyEnd").min=dates[0];$("#historyEnd").max=dates.at(-1);
