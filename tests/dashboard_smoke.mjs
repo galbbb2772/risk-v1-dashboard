@@ -44,24 +44,15 @@ await new Promise(r=>setTimeout(r,450));
 
 if(errors.length) throw new Error("Runtime errors: "+errors.join(" | "));
 if(!document.querySelector("#historyCards")?.textContent.trim()) throw new Error("historyCards did not render");
-if(!document.querySelector("#capitalCards")?.textContent.includes("5.280")) throw new Error("Capital 5.280 card missing");
+if(document.querySelector("#capitalCards")?.textContent.trim()) throw new Error("Capital should not render while hidden");
+if((ensurePlotEl("capitalNavChart").data||[]).length) throw new Error("Capital chart should not initialize while hidden");
+if((ensurePlotEl("treasuryDailyChart").data||[]).length) throw new Error("Treasury chart should not initialize while hidden");
 
 const hist=ensurePlotEl("historyChart");
 if((hist.data||[]).length<6) throw new Error("Expected at least 6 Risk V1 history traces");
 if(hist.data.some(t=>String(t.name||"").includes("Capital Layer"))) throw new Error("Capital Layer must not be mixed into main Risk V1 history chart");
 const histMax=Math.max(...hist.data.flatMap(t=>(t.y||[]).map(Number).filter(Number.isFinite)));
 if(histMax>3.0) throw new Error("Main Risk V1 history chart is vertically distorted by unrelated high-NAV data: "+histMax);
-
-const cap=ensurePlotEl("capitalNavChart");
-if((cap.data||[]).length<2) throw new Error("Capital daily chart must include Capital Layer and Core-only");
-const mainCap=cap.data.find(t=>String(t.name||"").includes("Capital Layer V1"));
-const coreCap=cap.data.find(t=>String(t.name||"").includes("Core only"));
-if(!mainCap||!coreCap) throw new Error("Capital daily comparison lines missing");
-if((mainCap.x||[]).length!==1764||(mainCap.y||[]).length!==1764) throw new Error("Capital Layer must have 1764 real daily observations");
-if(mainCap.x[0]!=="2019-09-05"||mainCap.x.at(-1)!=="2026-09-11") throw new Error("Capital daily date boundary mismatch");
-const capFinal=Number(mainCap.y.at(-1)),coreFinal=Number(coreCap.y.at(-1));
-if(Math.abs(capFinal-5.280261504516695)>1e-10) throw new Error("Capital real daily final mismatch: "+capFinal);
-if(Math.abs(coreFinal-4.684290357825601)>1e-10) throw new Error("Core-only real daily final mismatch: "+coreFinal);
 
 for(const key of ["1M","6M","12M","ALL"]){
   const btn=document.querySelector('#historyPresets button[data-range="'+key+'"]');
@@ -73,12 +64,30 @@ for(const key of ["1M","6M","12M","ALL"]){
   if(Date.parse(a)>Date.parse(b)) throw new Error("Reversed Risk range after "+key);
 }
 
+const treasuryTab=document.querySelector('.tab[data-tab="treasury"]');
+if(!treasuryTab) throw new Error("Treasury tab missing");
+treasuryTab.click();
+await new Promise(r=>setTimeout(r,120));
+if(!document.querySelector("#treasury")?.classList.contains("active")) throw new Error("Treasury panel did not activate");
+if((ensurePlotEl("treasuryDailyChart").data||[]).length<2) throw new Error("Treasury daily chart missing after activation");
+if((ensurePlotEl("treasuryUpliftChart").data||[]).length<2) throw new Error("Treasury uplift chart missing after activation");
+
 const capitalTab=document.querySelector('.tab[data-tab="capital"]');
 if(!capitalTab) throw new Error("Capital tab missing");
 capitalTab.click();
 await new Promise(r=>setTimeout(r,120));
 if(!document.querySelector("#capital")?.classList.contains("active")) throw new Error("Capital panel did not activate");
-if((ensurePlotEl("capitalNavChart").data||[]).length<2) throw new Error("Capital real daily chart missing after tab activation");
+if(!document.querySelector("#capitalCards")?.textContent.includes("5.280")) throw new Error("Capital 5.280 card missing after activation");
+const cap=ensurePlotEl("capitalNavChart");
+if((cap.data||[]).length<2) throw new Error("Capital real daily chart missing after tab activation");
+const mainCap=cap.data.find(t=>String(t.name||"").includes("Capital Layer V1"));
+const coreCap=cap.data.find(t=>String(t.name||"").includes("Core only"));
+if(!mainCap||!coreCap) throw new Error("Capital daily comparison lines missing");
+if((mainCap.x||[]).length!==1764||(mainCap.y||[]).length!==1764) throw new Error("Capital Layer must have 1764 real daily observations");
+if(mainCap.x[0]!=="2019-09-05"||mainCap.x.at(-1)!=="2026-09-11") throw new Error("Capital daily date boundary mismatch");
+const capFinal=Number(mainCap.y.at(-1)),coreFinal=Number(coreCap.y.at(-1));
+if(Math.abs(capFinal-5.280261504516695)>1e-10) throw new Error("Capital real daily final mismatch: "+capFinal);
+if(Math.abs(coreFinal-4.684290357825601)>1e-10) throw new Error("Core-only real daily final mismatch: "+coreFinal);
 
 for(const key of ["1M","6M","12M","ALL"]){
   const btn=document.querySelector('#capitalPresets button[data-range="'+key+'"]');
