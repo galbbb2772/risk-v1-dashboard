@@ -30,6 +30,7 @@ async function plotHealth(id,minLines=1){
   return await page.$eval("#"+id,(el,minLines)=>{
     const r=el.getBoundingClientRect();
     const svg=el.querySelector(".main-svg");
+    const allPaths=[...el.querySelectorAll("path")];
     const lines=[...el.querySelectorAll(".scatterlayer .trace path.js-line")].filter(p=>(p.getAttribute("d")||"").length>20);
     const xticks=el.querySelectorAll(".xtick").length;
     const yticks=el.querySelectorAll(".ytick").length;
@@ -37,7 +38,9 @@ async function plotHealth(id,minLines=1){
       width:r.width,height:r.height,hasSvg:!!svg,lineCount:lines.length,
       xticks,yticks,
       dataCount:(el.data||[]).length,
-      minLines
+      minLines,
+      scatterHtml:(el.querySelector(".scatterlayer")?.innerHTML||"").slice(0,2500),
+      pathSummary:allPaths.slice(0,40).map(p=>({cls:p.getAttribute("class"),d:(p.getAttribute("d")||"").slice(0,180),len:(p.getAttribute("d")||"").length}))
     };
   },minLines);
 }
