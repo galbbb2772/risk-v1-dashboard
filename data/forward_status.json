@@ -1,0 +1,31 @@
+{
+  "schema": "RISK_V1_FORWARD_STATUS_V2",
+  "canonical_strategy": "RISK-V1-STRICT-NEXT-OPEN",
+  "original_strategy_freeze_date": "2026-09-16",
+  "engine_recovered_on": "2026-10-29",
+  "state": "ENGINE_VALIDATED_AWAITING_FIRST_OFFICIAL_SCAN",
+  "official_forward_rows": 0,
+  "official_signal_rows": 0,
+  "official_trade_rows": 0,
+  "official_nav_rows": 0,
+  "first_official_forward_rule": "First successful after-close scan produced by the recovered frozen engine after 2026-10-29. No historical or reconstructed backfill counts as Forward.",
+  "recovered_blockers": {
+    "exact_rank_score_formula": "RESOLVED_FROM_ORIGINAL_FROZEN_PACKAGE",
+    "exact_market_rv20_reference": "RESOLVED_FROM_ORIGINAL_FROZEN_PACKAGE",
+    "standalone_repository": "RESOLVED_galbbb2772/risk-v1-lab",
+    "persistent_slot_accounting": "RESOLVED_FROM_308_TRADE_LEDGER"
+  },
+  "remaining_blockers": [
+    "MARKET_DATA_CREDENTIALS_NOT_CONFIRMED_IN_RISK_V1_LAB",
+    "FIRST_SUCCESSFUL_POST_RECOVERY_AFTER_CLOSE_SCAN_NOT_YET_RECORDED"
+  ],
+  "cross_family_effect": "Cross-family official Forward remains gated until this repository emits same-date official Risk V1 Forward NAV.",
+  "validation": {
+    "status": "PASS",
+    "workflow": "Validate Risk V1",
+    "run_id": 40875026286,
+    "validated_commit": "3e2274435c21b0ab8bf29bb9518dd1020f3b43d6",
+    "validated_on": "2026-10-29",
+    "note": "Historical contract tests passed after repairing the migrated daily MTM row boundary."
+  }
+}
