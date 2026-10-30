@@ -44,6 +44,7 @@ jobs:
           test -f data/legacy_monthly_cumulative_pct.csv
           test -f data/capital_marginal_curve.csv
           test -f data/capital_annual_performance.csv
+          test -f data/capital_daily_curve.csv
           test -f data/crisis_windows.csv
       - uses: actions/configure-pages@v5
         with:
