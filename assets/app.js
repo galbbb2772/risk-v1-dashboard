@@ -1,122 +1,198 @@
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const fmt=(v,d=2)=>v==null||v===""||!Number.isFinite(Number(v))?"—":Number(v).toFixed(d);
-const pct=(v,d=2)=>v==null||v===""||!Number.isFinite(Number(v))?"—":Number(v).toFixed(d)+"%";
+const num=v=>v==null||v===""?NaN:Number(v);
+const fmt=(v,d=2)=>Number.isFinite(num(v))?num(v).toFixed(d):"—";
+const pct=(v,d=2)=>Number.isFinite(num(v))?num(v).toFixed(d)+"%":"—";
 const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-const colors={risk:"#8cb8ff",tbill:"#56d6a4",sp:"#f3c76b",nasdaq:"#b59cff",dow:"#ff8f70"};
-const layout={paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(0,0,0,0)",font:{color:"#cad5e7"},margin:{l:64,r:24,t:34,b:56},hovermode:"x unified",legend:{orientation:"h",y:1.12,x:0},dragmode:"pan",xaxis:{gridcolor:"#182235"},yaxis:{gridcolor:"#182235"}};
-const config={responsive:true,displaylogo:false,displayModeBar:false,scrollZoom:false,doubleClick:"reset"};
+const COLORS={same:"#9fb7d9",strict:"#8cb8ff",t6:"#b59cff",tbill:"#56d6a4",legacyTbill:"#76c9b0",full:"#ff7d89",gold:"#f3c76b",orange:"#ff9a72",muted:"#8594ab"};
+const baseLayout={paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(0,0,0,0)",font:{color:"#cad5e7"},margin:{l:62,r:28,t:34,b:58},hovermode:"x unified",legend:{orientation:"h",y:1.14,x:0},dragmode:"pan",xaxis:{gridcolor:"#182235"},yaxis:{gridcolor:"#182235"}};
+const plotCfg={responsive:true,displaylogo:false,displayModeBar:false,scrollZoom:false,doubleClick:"reset"};
 
 function parseCSV(text){
- const rows=[];let row=[],cell="",q=false;
- for(let i=0;i<text.length;i++){const ch=text[i],n=text[i+1];
-  if(ch==='"'&&q&&n==='"'){cell+='"';i++;continue}
-  if(ch==='"'){q=!q;continue}
-  if(ch===","&&!q){row.push(cell);cell="";continue}
-  if((ch==="\n"||ch==="\r")&&!q){if(ch==="\r"&&n==="\n")i++;row.push(cell);cell="";if(row.some(x=>x!==""))rows.push(row);row=[];continue}
-  cell+=ch;
- }
- if(cell||row.length){row.push(cell);rows.push(row)}
- if(!rows.length)return[];
- const h=rows[0];return rows.slice(1).map(r=>Object.fromEntries(h.map((k,i)=>[k,r[i]??""])));
+  const rows=[];let row=[],cell="",q=false;
+  for(let i=0;i<text.length;i++){const ch=text[i],n=text[i+1];
+    if(ch==='"'&&q&&n==='"'){cell+='"';i++;continue}
+    if(ch==='"'){q=!q;continue}
+    if(ch===","&&!q){row.push(cell);cell="";continue}
+    if((ch==="\n"||ch==="\r")&&!q){if(ch==="\r"&&n==="\n")i++;row.push(cell);cell="";if(row.some(x=>x!==""))rows.push(row);row=[];continue}
+    cell+=ch;
+  }
+  if(cell||row.length){row.push(cell);rows.push(row)}
+  if(rows.length<2)return[];
+  const h=rows[0];
+  return rows.slice(1).map(r=>Object.fromEntries(h.map((k,i)=>[k,r[i]??""])));
 }
-async function csv(path){return parseCSV(await fetch(path+"?ts="+Date.now(),{cache:"no-store"}).then(r=>r.text()))}
-async function json(path){return fetch(path+"?ts="+Date.now(),{cache:"no-store"}).then(r=>r.json())}
-function table(rows,cols){return "<table><thead><tr>"+cols.map(c=>"<th>"+c[0]+"</th>").join("")+"</tr></thead><tbody>"+rows.map(r=>"<tr>"+cols.map((c,i)=>"<td class='"+(i===0?"left":"")+"'>"+c[1](r)+"</td>").join("")+"</tr>").join("")+"</tbody></table>"}
+const csv=path=>fetch(path+"?ts="+Date.now(),{cache:"no-store"}).then(r=>r.text()).then(parseCSV);
+const json=path=>fetch(path+"?ts="+Date.now(),{cache:"no-store"}).then(r=>r.json());
 function metric(label,value,cls=""){return "<div class='metric'><span class='small'>"+esc(label)+"</span><b class='"+cls+"'>"+esc(value)+"</b></div>"}
-function nearest(dates,date){const t=Date.parse(date);let b=0,dist=Infinity;dates.forEach((d,i)=>{const z=Math.abs(Date.parse(d)-t);if(z<dist){dist=z;b=i}});return b}
-function clamp(dates,a,b,min=60){let lo=nearest(dates,a),hi=nearest(dates,b);if(lo>hi)[lo,hi]=[hi,lo];const need=Math.min(min,dates.length);if(hi-lo+1<need){hi=Math.min(dates.length-1,lo+need-1);lo=Math.max(0,hi-need+1)}return[dates[lo],dates[hi]]}
-function preset(dates,key){if(key==="ALL")return[dates[0],dates.at(-1)];const days={"1Y":365,"3Y":1095,"5Y":1826}[key];const d=new Date(Date.parse(dates.at(-1))-days*86400000).toISOString().slice(0,10);return[dates[Math.max(0,nearest(dates,d))],dates.at(-1)]}
-function bindTabs(){$$(".tab").forEach(b=>b.onclick=()=>{$$(".tab").forEach(x=>x.classList.remove("active"));$$(".panel").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("#"+b.dataset.tab).classList.add("active");setTimeout(()=>window.dispatchEvent(new Event("resize")),80)})}
-
-let S,R,T,M,A,MI,TR,FST,FNAV,FTR,ACC,SPEC,historyRange;
-
-function renderOverview(range){
- const dates=R.map(x=>x.date), safe=clamp(dates,range[0],range[1]);historyRange=safe;
- $("#historyStart").value=safe[0];$("#historyEnd").value=safe[1];
- const traces=[
-  {x:R.map(x=>x.date),y:R.map(x=>+x.mtm_nav),name:"Risk V1 Strict Next-Open",type:"scatter",mode:"lines",line:{width:2.3,color:colors.risk}},
-  {x:T.map(x=>x.date),y:T.map(x=>+x.nav),name:"Risk V1 + 3M Treasury",type:"scatter",mode:"lines",line:{width:2.3,color:colors.tbill}}
- ];
- Plotly.react("historyChart",traces,{...layout,xaxis:{...layout.xaxis,range:safe,rangeslider:{visible:true,thickness:.08}},yaxis:{...layout.yaxis,title:"NAV multiple"}},config);
- Plotly.react("ddChart",[
-  {x:R.map(x=>x.date),y:R.map(x=>+x.drawdown*100),name:"Risk V1",type:"scatter",mode:"lines",line:{width:2,color:colors.risk}},
-  {x:T.map(x=>x.date),y:T.map(x=>+x.drawdown*100),name:"+ 3M Treasury",type:"scatter",mode:"lines",line:{width:2,color:colors.tbill}}
- ],{...layout,xaxis:{...layout.xaxis,range:safe},yaxis:{...layout.yaxis,title:"Drawdown %",ticksuffix:"%"}},config);
-
- $("#overviewCards").innerHTML=[
-  metric("Strict Final NAV",fmt(S.historical.final_nav,3)+"x"),
-  metric("Strict 累计收益",pct(S.historical.cumulative_return_pct)),
-  metric("Strict CAGR",pct(S.historical.cagr_pct)),
-  metric("Strict MaxDD",pct(S.historical.max_drawdown_pct),"bad"),
-  metric("交易数",S.historical.selected_trades),
-  metric("Profit Factor",fmt(S.historical.profit_factor,2))
- ].join("");
+function table(rows,cols){return "<table><thead><tr>"+cols.map(c=>"<th>"+c[0]+"</th>").join("")+"</tr></thead><tbody>"+rows.map(r=>"<tr>"+cols.map((c,i)=>"<td class='"+(i===0?"left":"")+"'>"+c[1](r)+"</td>").join("")+"</tr>").join("")+"</tbody></table>"}
+function nearestIndex(dates,date){const t=Date.parse(date);let best=0,dist=Infinity;dates.forEach((d,i)=>{const z=Math.abs(Date.parse(d)-t);if(z<dist){dist=z;best=i}});return best}
+function clampRange(dates,a,b,minPts=30){let lo=nearestIndex(dates,String(a).slice(0,10)),hi=nearestIndex(dates,String(b).slice(0,10));if(lo>hi)[lo,hi]=[hi,lo];const need=Math.min(minPts,dates.length);if(hi-lo+1<need){const mid=Math.round((lo+hi)/2);lo=Math.max(0,mid-Math.floor(need/2));hi=Math.min(dates.length-1,lo+need-1);lo=Math.max(0,hi-need+1)}return[dates[lo],dates[hi]]}
+function presetRange(dates,key){
+  if(key==="ALL")return[dates[0],dates.at(-1)];
+  const days={"1M":31,"3M":92,"6M":183,"12M":366,"3Y":1096,"5Y":1827}[key]||366;
+  const start=new Date(Date.parse(dates.at(-1))-days*86400000).toISOString().slice(0,10);
+  return[dates[Math.max(0,nearestIndex(dates,start))],dates.at(-1)];
 }
-function renderAnnual(){
- const years=A.map(x=>x.year);
- const cols=[["Next-Open Cash 0%",colors.risk],["Next-Open + 3M美债",colors.tbill],["S&P 500",colors.sp],["Nasdaq Composite",colors.nasdaq],["Dow Jones",colors.dow]];
- Plotly.react("annualChart",cols.map(([k,c])=>({x:years,y:A.map(x=>+x[k]*100),name:k,type:"bar",marker:{color:c}})),{...layout,barmode:"group",yaxis:{...layout.yaxis,title:"Annual return %",ticksuffix:"%"}},config);
+function drawdown(nav){let peak=-Infinity;return nav.map(v=>{v=num(v);peak=Math.max(peak,v);return peak>0?(v/peak-1)*100:0})}
+function bindTabs(){$$(".tab").forEach(b=>b.onclick=()=>{$$(".tab").forEach(x=>x.classList.remove("active"));$$(".panel").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("#"+b.dataset.tab).classList.add("active");setTimeout(()=>window.dispatchEvent(new Event("resize")),100)})}
+
+let S,RISK,TBILL,MODEL,ANNUAL,MONTHLY,TRADES,FSTAT,FNAV,FTR,ACCOUNT,SPEC,EXEC,LEGACY,LEGACYDD,VERS,CAM,CMC,CAPAN,CRS,CDDA,CDDE,CCORR,CREG,CWORST,CRISIS;
+let historyRange,historyBusy=false;
+
+function renderHistory(range){
+  const dates=EXEC.map(r=>r.date),safe=clampRange(dates,range[0],range[1],30);historyRange=safe;
+  $("#historyStart").value=safe[0];$("#historyEnd").value=safe[1];
+  const navSame=EXEC.map(r=>num(r.same_close)),navStrict=EXEC.map(r=>num(r.strict_next_open)),navT6=EXEC.map(r=>num(r.next_open_t6));
+  const traces=[
+    {x:dates,y:navSame,name:"Same-Close",type:"scatter",mode:"lines",line:{width:1.9,color:COLORS.same}},
+    {x:dates,y:navStrict,name:"Strict Next-Open",type:"scatter",mode:"lines",line:{width:2.6,color:COLORS.strict}},
+    {x:dates,y:navT6,name:"Next-Open → T+6",type:"scatter",mode:"lines",line:{width:1.8,color:COLORS.t6}},
+    {x:TBILL.map(r=>r.date),y:TBILL.map(r=>num(r.nav)),name:"Next-Open + 3M Treasury",type:"scatter",mode:"lines",line:{width:2.5,color:COLORS.tbill}},
+    {x:LEGACY.map(r=>r.date),y:LEGACY.map(r=>1+num(r.legacy_risk_v1_3m)/100),name:"Same-Close + 3M Treasury · monthly evidence",type:"scatter",mode:"lines+markers",marker:{size:4},line:{width:1.7,dash:"dash",color:COLORS.legacyTbill}},
+    {x:LEGACY.map(r=>r.date),y:LEGACY.map(r=>1+num(r.exposure_100)/100),name:"100% Stock Exposure · monthly evidence",type:"scatter",mode:"lines+markers",marker:{size:4},line:{width:1.6,dash:"dot",color:COLORS.full}}
+  ];
+  const lay={...baseLayout,xaxis:{...baseLayout.xaxis,range:safe,rangeslider:{visible:true,thickness:.08},title:"Market date"},yaxis:{...baseLayout.yaxis,title:"NAV multiple"}};
+  Plotly.react("historyChart",traces,lay,plotCfg);
+  const dd=[
+    {x:dates,y:drawdown(navSame),name:"Same-Close",type:"scatter",mode:"lines",line:{width:1.7,color:COLORS.same}},
+    {x:dates,y:drawdown(navStrict),name:"Strict Next-Open",type:"scatter",mode:"lines",line:{width:2.2,color:COLORS.strict}},
+    {x:dates,y:drawdown(navT6),name:"Next-Open → T+6",type:"scatter",mode:"lines",line:{width:1.6,color:COLORS.t6}},
+    {x:TBILL.map(r=>r.date),y:TBILL.map(r=>num(r.drawdown)*100),name:"Next-Open + 3M Treasury",type:"scatter",mode:"lines",line:{width:2.1,color:COLORS.tbill}},
+    {x:LEGACYDD.map(r=>r.date),y:LEGACYDD.map(r=>num(r.legacy_risk_v1_3m)),name:"Same-Close + 3M · monthly DD",type:"scatter",mode:"lines",line:{width:1.5,dash:"dash",color:COLORS.legacyTbill}},
+    {x:LEGACYDD.map(r=>r.date),y:LEGACYDD.map(r=>num(r.exposure_100)),name:"100% Exposure · monthly DD",type:"scatter",mode:"lines",line:{width:1.5,dash:"dot",color:COLORS.full}}
+  ];
+  Plotly.react("historyDDChart",dd,{...baseLayout,xaxis:{...baseLayout.xaxis,range:safe},yaxis:{...baseLayout.yaxis,title:"Drawdown %",ticksuffix:"%"}},plotCfg);
+  const h=$("#historyChart");if(!h.__bound){h.on("plotly_relayout",ev=>{if(historyBusy)return;const a=ev["xaxis.range[0]"],b=ev["xaxis.range[1]"];if(a!=null&&b!=null){const r=clampRange(dates,a,b,30);historyBusy=true;Promise.all([Plotly.relayout("historyChart",{"xaxis.range":r}),Plotly.relayout("historyDDChart",{"xaxis.range":r})]).finally(()=>historyBusy=false);historyRange=r;$("#historyStart").value=r[0];$("#historyEnd").value=r[1]}});h.__bound=true}
+  $("#historyCards").innerHTML=[
+    metric("Fixed 3-slot CAGR","9.48%"),
+    metric("Risk V1 10/14 CAGR","10.78%"),
+    metric("Strict Next-Open CAGR",pct(S.historical.cagr_pct),"good"),
+    metric("+3M Treasury CAGR",pct(S.treasury.cagr_pct),"good"),
+    metric("100% Exposure MaxDD","-24.13%","bad"),
+    metric("历史交易",S.historical.selected_trades)
+  ].join("");
+  $("#versionTable").innerHTML=table(VERS,[["版本",r=>esc(r.label)],["分类",r=>esc(r.class)],["CAGR",r=>pct(r.cagr_pct)],["MaxDD",r=>pct(r.max_dd_pct)],["Sharpe",r=>fmt(r.sharpe,2)],["曲线证据",r=>r.curve_available?"<span class='pill'>有</span>":"<span class='pill'>指标-only</span>"],["状态",r=>esc(r.status)]]);
 }
+function bindHistory(){
+  const dates=EXEC.map(r=>r.date);$("#historyStart").min=dates[0];$("#historyStart").max=dates.at(-1);$("#historyEnd").min=dates[0];$("#historyEnd").max=dates.at(-1);
+  $("#historyPresets").onclick=e=>{const b=e.target.closest("button[data-range]");if(!b)return;$$('#historyPresets button').forEach(x=>x.classList.toggle("active",x===b));renderHistory(presetRange(dates,b.dataset.range))};
+  $("#historyApply").onclick=()=>renderHistory([$("#historyStart").value,$("#historyEnd").value]);
+  $("#historyReset").onclick=()=>{$$("#historyPresets button").forEach(x=>x.classList.toggle("active",x.dataset.range==="ALL"));renderHistory([dates[0],dates.at(-1)])};
+}
+
 function renderTreasury(){
- $("#treasuryCards").innerHTML=[
-  metric("T-Bill Final NAV",fmt(S.treasury.final_nav,3)+"x"),
-  metric("累计收益",pct(S.treasury.cumulative_return_pct)),
-  metric("CAGR",pct(S.treasury.cagr_pct),"good"),
-  metric("MaxDD",pct(S.treasury.max_drawdown_pct)),
-  metric("Sharpe",fmt(S.treasury.sharpe,3)),
-  metric("CAGR 增量",pct(S.treasury.cagr_pct-S.historical.cagr_pct),"good")
- ].join("");
- const series=[["Next-Open Cash 0%",colors.risk],["Next-Open + 3M美债",colors.tbill],["S&P 500",colors.sp],["Nasdaq Composite",colors.nasdaq],["Dow Jones",colors.dow]];
- Plotly.react("benchmarkChart",series.map(([k,c])=>({x:MI.map(x=>x.date),y:MI.map(x=>1+(+x[k])/100),name:k,type:"scatter",mode:"lines",line:{width:k.includes("3M")?2.5:1.8,color:c}})),{...layout,yaxis:{...layout.yaxis,title:"Cumulative multiple"},xaxis:{...layout.xaxis,rangeslider:{visible:true,thickness:.08}}},config);
- $("#modelTable").innerHTML=table(M,[["版本",r=>esc(r.version)],["Final NAV",r=>fmt(r.final_nav,3)+"x"],["累计收益",r=>pct(+r.cum*100)],["CAGR",r=>pct(+r.cagr*100)],["MaxDD",r=>pct(+r.mdd*100)],["Sharpe",r=>fmt(r.sharpe,3)],["Calmar",r=>fmt(r.calmar,3)]]);
+  const modelBy=Object.fromEntries(MODEL.map(r=>[r.version,r]));
+  const strict=modelBy["Next-Open Cash 0%"],tb=modelBy["Next-Open + 3M Treasury FINAL"],same=modelBy["Same-Close Risk V1"],sameTb=modelBy["Same-Close + 3M Treasury"];
+  $("#treasuryCards").innerHTML=[
+    metric("Next-Open +3M Final NAV",fmt(tb.final_nav,3)+"x"),
+    metric("Final NAV 增量","+"+fmt((num(tb.final_nav)-num(strict.final_nav))*100,2)+"pp","good"),
+    metric("CAGR 增量","+"+fmt((num(tb.cagr)-num(strict.cagr))*100,2)+"pp","good"),
+    metric("MaxDD 改善","+"+fmt((Math.abs(num(strict.mdd))-Math.abs(num(tb.mdd)))*100,2)+"pp","good"),
+    metric("Same-Close CAGR 增量","+"+fmt((num(sameTb.cagr)-num(same.cagr))*100,2)+"pp"),
+    metric("Cash overlay","不是独立 Alpha","neutral")
+  ].join("");
+  Plotly.react("treasuryDailyChart",[
+    {x:RISK.map(r=>r.date),y:RISK.map(r=>num(r.mtm_nav)),name:"Next-Open Cash 0%",type:"scatter",mode:"lines",line:{width:2.2,color:COLORS.strict}},
+    {x:TBILL.map(r=>r.date),y:TBILL.map(r=>num(r.nav)),name:"Next-Open + 3M Treasury",type:"scatter",mode:"lines",line:{width:2.4,color:COLORS.tbill}}
+  ],{...baseLayout,xaxis:{...baseLayout.xaxis,rangeslider:{visible:true,thickness:.08}},yaxis:{...baseLayout.yaxis,title:"NAV"}},plotCfg);
+  const riskMap=new Map(RISK.map(r=>[r.date,num(r.mtm_nav)]));
+  const upl=TBILL.filter(r=>riskMap.has(r.date)).map(r=>({date:r.date,pp:(num(r.nav)-riskMap.get(r.date))*100,relative:(num(r.nav)/riskMap.get(r.date)-1)*100}));
+  Plotly.react("treasuryUpliftChart",[
+    {x:upl.map(r=>r.date),y:upl.map(r=>r.pp),name:"NAV uplift vs 0% cash",type:"scatter",mode:"lines",line:{width:2.3,color:COLORS.tbill},fill:"tozeroy"},
+    {x:upl.map(r=>r.date),y:upl.map(r=>r.relative),name:"Relative uplift %",type:"scatter",mode:"lines",line:{width:1.5,dash:"dash",color:COLORS.gold},yaxis:"y2"}
+  ],{...baseLayout,yaxis:{...baseLayout.yaxis,title:"Initial-capital pp"},yaxis2:{title:"Relative uplift %",overlaying:"y",side:"right",showgrid:false,ticksuffix:"%"}},plotCfg);
+  Plotly.react("treasuryLegacyChart",[
+    {x:LEGACY.map(r=>r.date),y:LEGACY.map(r=>1+num(r.legacy_risk_v1)/100),name:"Same-Close Risk V1",type:"scatter",mode:"lines+markers",marker:{size:4},line:{width:2,color:COLORS.same}},
+    {x:LEGACY.map(r=>r.date),y:LEGACY.map(r=>1+num(r.legacy_risk_v1_3m)/100),name:"Same-Close + 3M Treasury",type:"scatter",mode:"lines+markers",marker:{size:4},line:{width:2.3,color:COLORS.legacyTbill}}
+  ],{...baseLayout,yaxis:{...baseLayout.yaxis,title:"Monthly-evidence NAV"}},plotCfg);
+  const ann0=ANNUAL.map(r=>num(r["Next-Open Cash 0%"])*100),annT=ANNUAL.map(r=>num(r["Next-Open + 3M美债"])*100);
+  Plotly.react("treasuryAnnualChart",[
+    {x:ANNUAL.map(r=>r.year),y:ann0,name:"0% Cash",type:"bar",marker:{color:COLORS.strict}},
+    {x:ANNUAL.map(r=>r.year),y:annT,name:"+3M Treasury",type:"bar",marker:{color:COLORS.tbill}},
+    {x:ANNUAL.map(r=>r.year),y:annT.map((v,i)=>v-ann0[i]),name:"Treasury uplift pp",type:"scatter",mode:"lines+markers",line:{color:COLORS.gold,width:2},yaxis:"y2"}
+  ],{...baseLayout,barmode:"group",yaxis:{...baseLayout.yaxis,title:"Annual return %"},yaxis2:{title:"Uplift pp",overlaying:"y",side:"right",showgrid:false}},plotCfg);
+  $("#modelTable").innerHTML=table(MODEL,[["版本",r=>esc(r.version)],["Final NAV",r=>fmt(r.final_nav,3)+"x"],["累计收益",r=>pct(num(r.cum)*100)],["CAGR",r=>pct(num(r.cagr)*100)],["MaxDD",r=>pct(num(r.mdd)*100)],["Sharpe",r=>fmt(r.sharpe,3)],["Calmar",r=>fmt(r.calmar,3)]]);
+  $("#crisisTable").innerHTML=table(CRISIS,[["窗口",r=>esc(r.window)],["系列",r=>esc(r.series)],["窗口收益",r=>pct(num(r.return)*100)]]);
 }
-function renderTrades(q=""){
- const f=TR.filter(r=>!q||[r.symbol,r.slot,r.signal_date,r.entry_date,r.exit_date].join(" ").toLowerCase().includes(q.toLowerCase()));
- const wins=TR.filter(r=>+r.net_return>0).length, avg=TR.reduce((s,r)=>s+(+r.net_return||0),0)/TR.length;
- $("#tradeCards").innerHTML=[metric("历史交易",TR.length),metric("胜率",pct(wins/TR.length*100)),metric("平均单笔",pct(avg*100)),metric("不同股票",new Set(TR.map(r=>r.symbol)).size),metric("首个信号",TR[0]?.signal_date||"—"),metric("最后信号",TR.at(-1)?.signal_date||"—")].join("");
- $("#tradeCount").textContent=f.length+" / "+TR.length;
- $("#tradeTable").innerHTML=table(f,[["Symbol",r=>esc(r.symbol)],["Slot",r=>r.slot],["Signal",r=>r.signal_date],["Entry",r=>r.entry_date],["Entry Open",r=>fmt(r.entry_open,2)],["Exit",r=>r.exit_date],["Exit Close",r=>fmt(r.exit_close,2)],["Net Return",r=>pct(+r.net_return*100)],["Rank",r=>fmt(r.rank_score,3)],["Vol20",r=>pct(+r.vol20*100)]]);
+
+function renderCapital(){
+  const core=CMC.find(r=>num(r.sleeve)===0),sel=CMC.find(r=>Math.abs(num(r.sleeve)-.2)<1e-9);
+  $("#capitalCards").innerHTML=[
+    metric("Core only",fmt(core.ending,3)+"x"),
+    metric("Core +20% Risk",fmt(CAM.ending_multiple,3)+"x","good"),
+    metric("CAGR",pct(CAM.cagr_pct),"good"),
+    metric("MaxDD",pct(CAM.max_dd_pct)),
+    metric("平均股票暴露",pct(CAM.avg_exposure_pct)),
+    metric("Risk+互动增长占比",pct(CAM.riskv1_incremental_log_growth_share_pct))
+  ].join("");
+  const x=CMC.map(r=>num(r.sleeve)*100);
+  Plotly.react("capitalMarginalChart",[
+    {x,y:CMC.map(r=>num(r.cagr_pct)),name:"CAGR %",type:"scatter",mode:"lines+markers",line:{width:2.4,color:COLORS.strict}},
+    {x,y:CMC.map(r=>num(r.avg_exposure_pct)),name:"Avg exposure %",type:"bar",marker:{color:COLORS.tbill},opacity:.55,yaxis:"y2"},
+    {x:[20],y:[num(sel.cagr_pct)],name:"Frozen 20%",type:"scatter",mode:"markers",marker:{size:13,color:COLORS.gold,symbol:"diamond"}}
+  ],{...baseLayout,xaxis:{...baseLayout.xaxis,title:"Risk V1 sleeve %"},yaxis:{...baseLayout.yaxis,title:"CAGR %"},yaxis2:{title:"Avg exposure %",overlaying:"y",side:"right",showgrid:false}},plotCfg);
+  Plotly.react("capitalAnnualChart",[
+    {x:CAPAN.map(r=>r.year),y:CAPAN.map(r=>num(r.return_pct)),name:"Return %",type:"bar",marker:{color:COLORS.strict}},
+    {x:CAPAN.map(r=>r.year),y:CAPAN.map(r=>num(r.avg_exposure_pct)),name:"Avg exposure %",type:"scatter",mode:"lines+markers",line:{width:2,color:COLORS.tbill},yaxis:"y2"}
+  ],{...baseLayout,yaxis:{...baseLayout.yaxis,title:"Annual return %"},yaxis2:{title:"Exposure %",overlaying:"y",side:"right",showgrid:false}},plotCfg);
+  Plotly.react("capitalSourceChart",[{x:CRS.map(r=>num(r.share_of_total_log_growth_pct)),y:CRS.map(r=>r.source),type:"bar",orientation:"h",marker:{color:[COLORS.strict,COLORS.tbill]},text:CRS.map(r=>pct(r.share_of_total_log_growth_pct)),textposition:"auto",name:"Log growth share"}],{...baseLayout,showlegend:false,xaxis:{...baseLayout.xaxis,title:"Share of total log growth %"}},plotCfg);
+  Plotly.react("capitalCorrChart",[
+    {x:CCORR.map(r=>r.window_days),y:CCORR.map(r=>num(r.median_corr)),name:"Median corr",type:"scatter",mode:"lines+markers",line:{width:2.4,color:COLORS.strict}},
+    {x:CCORR.map(r=>r.window_days),y:CCORR.map(r=>num(r.p10_corr)),name:"P10",type:"scatter",mode:"lines+markers",line:{width:1.5,dash:"dash",color:COLORS.tbill}},
+    {x:CCORR.map(r=>r.window_days),y:CCORR.map(r=>num(r.p90_corr)),name:"P90",type:"scatter",mode:"lines+markers",line:{width:1.5,dash:"dash",color:COLORS.gold}}
+  ],{...baseLayout,xaxis:{...baseLayout.xaxis,title:"Rolling window days"},yaxis:{...baseLayout.yaxis,title:"Correlation",range:[-0.15,.35]}},plotCfg);
+  $("#capitalDDTable").innerHTML=table(CDDA,[["Peak",r=>r.peak_date],["Trough",r=>r.trough_date],["Capital Layer DD",r=>pct(r.capital_layer_drawdown_pct)],["Core same-window",r=>pct(r.core_only_same_window_return_pct)],["Risk incremental",r=>pct(r.riskv1_incremental_effect_pp)],["Recovered",r=>r.recovery_date]]);
+  $("#capitalRegimeTable").innerHTML=table(CREG,[["市场状态",r=>esc(r.market_state)],["月份",r=>r.months],["月均收益",r=>pct(num(r.strategy_mean_monthly)*100)],["月胜率",r=>pct(r.strategy_win_month_pct)],["SP月均",r=>pct(num(r.sp_mean_monthly)*100)],["年化均值",r=>pct(r.strategy_annualized_mean_pct)]]);
+  $("#capitalWorstTable").innerHTML=table(CWORST.slice(0,12),[["日期",r=>r.date],["账户收益",r=>pct(r.ret_pct)],["前日暴露",r=>pct(num(r.pre_day_exposure)*100)],["前日Core",r=>pct(num(r.pre_day_core_exposure)*100)],["前日Risk",r=>pct(num(r.pre_day_rv_exposure)*100)],["当日DD",r=>pct(r.dd_pct)]]);
 }
+
+function renderTrades(filter=""){
+  const q=filter.trim().toLowerCase(),rows=TRADES.filter(r=>!q||[r.symbol,r.slot,r.signal_date,r.entry_date,r.exit_date].join(" ").toLowerCase().includes(q));
+  const wins=TRADES.filter(r=>num(r.net_return)>0).length,avg=TRADES.reduce((s,r)=>s+(num(r.net_return)||0),0)/TRADES.length;
+  $("#tradeCards").innerHTML=[
+    metric("交易数",TRADES.length),metric("胜率",pct(wins/TRADES.length*100)),metric("平均单笔",pct(avg*100)),
+    metric("股票数",new Set(TRADES.map(r=>r.symbol)).size),metric("首个信号",TRADES[0]?.signal_date||"—"),metric("最后信号",TRADES.at(-1)?.signal_date||"—")
+  ].join("");
+  Plotly.react("tradeHist",[{x:TRADES.map(r=>num(r.net_return)*100),type:"histogram",nbinsx:40,name:"Net return",marker:{color:COLORS.strict}}],{...baseLayout,showlegend:false,xaxis:{...baseLayout.xaxis,title:"Trade net return %"},yaxis:{...baseLayout.yaxis,title:"Count"}},plotCfg);
+  const yr={};TRADES.forEach(r=>{const y=(r.signal_date||"").slice(0,4);yr[y]=(yr[y]||0)+1});
+  Plotly.react("tradeYearChart",[{x:Object.keys(yr),y:Object.values(yr),type:"bar",marker:{color:COLORS.tbill},name:"Trades"}],{...baseLayout,showlegend:false,yaxis:{...baseLayout.yaxis,title:"Trades"}},plotCfg);
+  $("#tradeCount").textContent=rows.length+" / "+TRADES.length;
+  $("#tradeTable").innerHTML=table(rows,[["Symbol",r=>esc(r.symbol)],["Slot",r=>r.slot],["Signal",r=>r.signal_date],["Entry",r=>r.entry_date],["Entry Open",r=>fmt(r.entry_open,2)],["Exit",r=>r.exit_date],["Exit Close",r=>fmt(r.exit_close,2)],["Net Return",r=>pct(num(r.net_return)*100)],["Rank",r=>fmt(r.rank_score,3)],["Vol20",r=>pct(num(r.vol20)*100)]]);
+}
+
 function renderForward(){
- $("#forwardCards").innerHTML=[
-  metric("状态",FST.state),
-  metric("验证",FST.validation?.status||"—",FST.validation?.status==="PASS"?"good":"warn"),
-  metric("正式 NAV 行",FST.official_nav_rows),
-  metric("正式交易",FST.official_trade_rows),
-  metric("Engine recovered",FST.engine_recovered_on),
-  metric("Freeze",FST.original_strategy_freeze_date)
- ].join("");
- if(FNAV.length){
-  $("#forwardEmpty").style.display="none";
-  Plotly.react("forwardChart",[{x:FNAV.map(x=>x.date),y:FNAV.map(x=>+x.nav),name:"Risk V1 Forward",type:"scatter",mode:"lines+markers",line:{width:2.3,color:colors.risk}}],{...layout,yaxis:{...layout.yaxis,title:"Forward NAV"},xaxis:{...layout.xaxis,rangeslider:{visible:true}}},config);
- }else{
-  Plotly.purge("forwardChart");$("#forwardEmpty").style.display="block";$("#forwardEmpty").innerHTML="<b>暂无正式 Forward NAV</b><br>引擎已经验证通过，但仍在等待首个 post-recovery 真实收盘扫描。";
- }
- $("#slotTable").innerHTML=table(ACC.slots,[["Slot",r=>r.slot],["状态",r=>esc(r.status)],["Symbol",r=>esc(r.symbol||"—")],["Cash",r=>pct(+r.cash*100)],["Entry date",r=>esc(r.entry_date||"—")],["Entry price",r=>fmt(r.entry_price,2)]]);
- $("#forwardTradeTable").innerHTML=FTR.length?table(FTR,[["Symbol",r=>esc(r.symbol)],["Slot",r=>r.slot],["Signal",r=>r.signal_date],["Entry",r=>r.entry_date],["Exit",r=>r.exit_date],["Net Return",r=>pct(+r.net_return*100)],["Status",r=>esc(r.status)]]):"<div class='empty' style='display:block'>暂无正式 Forward 交易。</div>";
- $("#forwardNote").innerHTML="<b>Forward 纪律：</b> "+esc(FST.first_official_forward_rule)+"<br><br><b>当前阻塞：</b> "+(FST.remaining_blockers||[]).map(esc).join(" · ");
+  $("#forwardCards").innerHTML=[
+    metric("状态",FSTAT.state),metric("验证",FSTAT.validation?.status||"—",FSTAT.validation?.status==="PASS"?"good":"warn"),
+    metric("正式 NAV 行",FSTAT.official_nav_rows),metric("正式交易",FSTAT.official_trade_rows),
+    metric("Engine recovered",FSTAT.engine_recovered_on),metric("Freeze",FSTAT.original_strategy_freeze_date)
+  ].join("");
+  if(FNAV.length){
+    $("#forwardEmpty").style.display="none";
+    Plotly.react("forwardChart",[{x:FNAV.map(r=>r.date),y:FNAV.map(r=>num(r.nav)),name:"Risk V1 Forward",type:"scatter",mode:"lines+markers",line:{width:2.5,color:COLORS.strict}}],{...baseLayout,xaxis:{...baseLayout.xaxis,rangeslider:{visible:true,thickness:.08}},yaxis:{...baseLayout.yaxis,title:"Forward NAV"}},plotCfg);
+  }else{
+    Plotly.purge("forwardChart");$("#forwardEmpty").style.display="block";$("#forwardEmpty").innerHTML="<b>暂无正式 Forward NAV</b><br>冻结引擎与历史契约已验证通过；目前仍没有 post-recovery 的正式扫描行。";
+  }
+  $("#slotTable").innerHTML=table(ACCOUNT.slots,[["Slot",r=>r.slot],["状态",r=>esc(r.status)],["Symbol",r=>esc(r.symbol||"—")],["Cash",r=>pct(num(r.cash)*100)],["Entry date",r=>esc(r.entry_date||"—")],["Entry price",r=>fmt(r.entry_price,2)]]);
+  $("#forwardTradeTable").innerHTML=FTR.length?table(FTR,[["Symbol",r=>esc(r.symbol)],["Slot",r=>r.slot],["Signal",r=>r.signal_date],["Entry",r=>r.entry_date],["Exit",r=>r.exit_date],["Net Return",r=>pct(num(r.net_return)*100)],["Status",r=>esc(r.status)]]):"<div class='empty' style='display:block'>暂无正式 Forward 交易。</div>";
+  $("#forwardNote").innerHTML="<b>Forward 规则：</b> "+esc(FSTAT.first_official_forward_rule)+"<br><br><b>当前阻塞：</b> "+(FSTAT.remaining_blockers||[]).map(esc).join(" · ");
 }
+
 function renderRules(){
- $("#rulesContent").innerHTML="<h2>"+esc(SPEC.strategy)+"</h2>"+
- "<h3>Universe</h3><ul>"+SPEC.universe.map(x=>"<li>"+esc(x)+"</li>").join("")+"</ul>"+
- "<h3>Signal</h3><ul>"+SPEC.signal.map(x=>"<li>"+esc(x)+"</li>").join("")+"</ul>"+
- "<h3>Ranking</h3><p>"+esc(SPEC.ranking)+"</p>"+
- "<h3>Market risk / slots</h3><p>"+esc(SPEC.market_risk)+"</p><ul>"+Object.entries(SPEC.slots).map(([k,v])=>"<li><code>"+esc(k)+"</code> → "+v+" slot(s)</li>").join("")+"</ul>"+
- "<h3>Execution</h3><p>"+esc(SPEC.execution)+"</p>"+
- "<h3>Cash layer</h3><p>"+esc(SPEC.cash_layer)+"</p>";
+  $("#rulesContent").innerHTML="<h2>"+esc(SPEC.strategy)+"</h2><h3>Universe</h3><ul>"+SPEC.universe.map(x=>"<li>"+esc(x)+"</li>").join("")+"</ul><h3>Signal</h3><ul>"+SPEC.signal.map(x=>"<li>"+esc(x)+"</li>").join("")+"</ul><h3>Ranking</h3><p>"+esc(SPEC.ranking)+"</p><h3>Market risk / slots</h3><p>"+esc(SPEC.market_risk)+"</p><ul>"+Object.entries(SPEC.slots).map(([k,v])=>"<li><code>"+esc(k)+"</code> → "+v+" slot(s)</li>").join("")+"</ul><h3>Execution</h3><p>"+esc(SPEC.execution)+"</p><h3>Cash layer</h3><p>"+esc(SPEC.cash_layer)+"</p>";
+  $("#governanceContent").innerHTML="<h2>版本治理</h2><p>当前唯一正式独立 Risk Alpha：<code>RISK-V1-STRICT-NEXT-OPEN</code>。</p><ul><li>Same-Close：历史执行前代。</li><li>Next-Open → T+6：执行时点对照，不是主版本。</li><li>3M Treasury：现金管理层，不是独立 Alpha。</li><li>100% Exposure：压力/对照版本，已拒绝为主版本。</li><li>Capital Layer V1：Core + 20% Risk V1 的组合资金层，不可与独立 Risk V1 双重计数。</li><li>任何规则变化必须建立新版本并重新开启 Forward freeze clock。</li></ul><h3>数据粒度</h3><p>Dashboard 明确区分 daily MTM、monthly evidence、metrics-only。没有日度证据的版本不会被插值成日度曲线。</p>";
 }
-function bindControls(){
- $("#historyStart").min=R[0].date;$("#historyStart").max=R.at(-1).date;$("#historyEnd").min=R[0].date;$("#historyEnd").max=R.at(-1).date;
- $("#historyPresets").onclick=e=>{const b=e.target.closest("button[data-range]");if(!b)return;$$('#historyPresets button').forEach(x=>x.classList.toggle("active",x===b));renderOverview(preset(R.map(x=>x.date),b.dataset.range))};
- $("#historyApply").onclick=()=>renderOverview([$("#historyStart").value,$("#historyEnd").value]);
- $("#historyReset").onclick=()=>renderOverview([R[0].date,R.at(-1).date]);
- $("#tradeSearch").oninput=e=>renderTrades(e.target.value);
-}
+
 (async()=>{
- bindTabs();
- [S,R,T,M,A,MI,TR,FST,FNAV,FTR,ACC,SPEC]=await Promise.all([
-  json("data/summary.json"),csv("data/risk_daily_mtm.csv"),csv("data/treasury_daily_nav.csv"),csv("data/model_metrics.csv"),csv("data/annual_returns.csv"),csv("data/monthly_vs_indices.csv"),csv("data/trades_308.csv"),json("data/forward_status.json"),csv("data/forward_daily_nav.csv"),csv("data/forward_trades.csv"),json("data/account_state.json"),json("data/strategy_spec.json")
- ]);
- $("#asof").textContent="HIST "+S.historical_window.end+" · FWD "+(FST.official_nav_rows?FNAV.at(-1)?.date:"PENDING");
- renderOverview([R[0].date,R.at(-1).date]);renderAnnual();renderTreasury();renderTrades();renderForward();renderRules();bindControls();
+  bindTabs();
+  [S,RISK,TBILL,MODEL,ANNUAL,MONTHLY,TRADES,FSTAT,FNAV,FTR,ACCOUNT,SPEC,EXEC,LEGACY,LEGACYDD,VERS,CAM,CMC,CAPAN,CRS,CDDA,CDDE,CCORR,CREG,CWORST,CRISIS]=await Promise.all([
+    json("data/summary.json"),csv("data/risk_daily_mtm.csv"),csv("data/treasury_daily_nav.csv"),csv("data/model_metrics.csv"),csv("data/annual_returns.csv"),csv("data/monthly_vs_indices.csv"),csv("data/trades_308.csv"),
+    json("data/forward_status.json"),csv("data/forward_daily_nav.csv"),csv("data/forward_trades.csv"),json("data/account_state.json"),json("data/strategy_spec.json"),
+    csv("data/execution_variants_daily.csv"),csv("data/legacy_monthly_cumulative_pct.csv"),csv("data/legacy_monthly_drawdown_pct.csv"),json("data/version_registry.json"),
+    json("data/capital_audit_metrics.json"),csv("data/capital_marginal_curve.csv"),csv("data/capital_annual_performance.csv"),csv("data/capital_return_sources.csv"),
+    csv("data/capital_drawdown_attribution.csv"),csv("data/capital_drawdown_episodes.csv"),csv("data/capital_correlation_summary.csv"),csv("data/capital_market_regime_summary.csv"),csv("data/capital_worst_20_days.csv"),csv("data/crisis_windows.csv")
+  ]);
+  $("#asof").textContent="HIST "+S.historical_window.end+" · FWD "+(FSTAT.official_nav_rows?FNAV.at(-1)?.date:"PENDING");
+  renderHistory([EXEC[0].date,EXEC.at(-1).date]);bindHistory();
+  renderTreasury();renderCapital();renderTrades();renderForward();renderRules();
+  $("#tradeSearch").oninput=e=>renderTrades(e.target.value);
 })().catch(err=>{console.error(err);document.body.insertAdjacentHTML("beforeend","<div class='wrap bad'>Dashboard load error: "+esc(err.message||err)+"</div>")});
