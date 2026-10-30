@@ -1,0 +1,17 @@
+{
+  "period": "2019-09-05 to 2026-09-11",
+  "ending_multiple": 5.280261504516695,
+  "cagr_pct": 26.760733338275088,
+  "max_dd_pct": -12.69879171748978,
+  "sharpe": 1.4896526302050028,
+  "avg_exposure_pct": 29.233322993735882,
+  "zero_exposure_days_pct": 34.69387755102041,
+  "active_day_avg_exposure_pct": 44.76352583415807,
+  "core_log_growth_share_pct": 92.80270762128184,
+  "riskv1_incremental_log_growth_share_pct": 7.197292378718161,
+  "worst_daily_return_pct": -11.699185013024016,
+  "historical_ES_1pct_pct": -3.790777494583479,
+  "rolling_63d_corr_median": 0.07784125016391516,
+  "rolling_252d_corr_median": 0.07389340043984817,
+  "riskv1_skip_rate_pct": 1.948051948051948
+}
