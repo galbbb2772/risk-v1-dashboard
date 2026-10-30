@@ -37,6 +37,8 @@ jobs:
           test -f data/treasury_daily_nav.csv
           test -f data/trades_308.csv
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .
