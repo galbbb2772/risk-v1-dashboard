@@ -1,0 +1,24 @@
+{
+  "schema": "RISK_V1_DASHBOARD_EXPORT_V1",
+  "source_reports_zip": "historical/reports/original_risk_v1_reports.zip",
+  "next_open_report_member": "next_open_execution_test_report.html",
+  "professional_report_member": "risk_v1_professional_research_report.html",
+  "execution_rows": 1725,
+  "legacy_months": 75,
+  "capital_audit_source": "capital_layer/CAPITAL_LAYER_V1_FULL_AUDIT_PACKAGE.zip",
+  "files": [
+    "capital_annual_performance.csv",
+    "capital_audit_executive_metrics.json",
+    "capital_capital_marginal_return_curve.csv",
+    "capital_correlation_drift_summary.csv",
+    "capital_drawdown_core_vs_riskv1_attribution.csv",
+    "capital_drawdown_episodes.csv",
+    "capital_market_regime_summary.csv",
+    "capital_return_source_account_level.csv",
+    "capital_worst_20_days_corrected.csv",
+    "execution_variants_daily.csv",
+    "legacy_monthly_cumulative_pct.csv",
+    "legacy_monthly_drawdown_pct.csv",
+    "version_registry.json"
+  ]
+}
