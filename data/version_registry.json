@@ -1,0 +1,92 @@
+[
+  {
+    "id": "FIXED-3S",
+    "label": "Fixed 3-slot",
+    "class": "historical predecessor",
+    "cagr_pct": 9.48,
+    "max_dd_pct": -15.46,
+    "sharpe": 0.86,
+    "status": "REFERENCE_ONLY",
+    "curve_available": false
+  },
+  {
+    "id": "RISK-V1-10-14",
+    "label": "Risk V1 10/14 Same-Close",
+    "class": "dynamic volatility regime",
+    "cagr_pct": 10.78,
+    "max_dd_pct": -10.33,
+    "sharpe": 1.54,
+    "status": "HISTORICAL_MAIN_PREDECESSOR",
+    "curve_available": true
+  },
+  {
+    "id": "RISK-V1-11-14",
+    "label": "Risk V1 11/14 Conservative",
+    "class": "conservative threshold variant",
+    "cagr_pct": null,
+    "max_dd_pct": -9.02,
+    "sharpe": 1.58,
+    "status": "REFERENCE_ONLY",
+    "curve_available": false
+  },
+  {
+    "id": "STRICT-NEXT-OPEN",
+    "label": "Strict Next-Open",
+    "class": "canonical independent alpha",
+    "cagr_pct": 10.934440280567713,
+    "max_dd_pct": -10.988846685945719,
+    "sharpe": 1.275763961382235,
+    "status": "CANONICAL_FORWARD",
+    "curve_available": true
+  },
+  {
+    "id": "NEXT-OPEN-T6",
+    "label": "Next-Open → T+6",
+    "class": "execution timing control",
+    "cagr_pct": null,
+    "max_dd_pct": null,
+    "sharpe": null,
+    "status": "EXECUTION_CONTROL",
+    "curve_available": true
+  },
+  {
+    "id": "SAME-CLOSE-3M",
+    "label": "Same-Close + 3M Treasury",
+    "class": "cash overlay",
+    "cagr_pct": 12.822457685974342,
+    "max_dd_pct": -9.647211296880032,
+    "sharpe": 1.8148678880562756,
+    "status": "LEGACY_CASH_OVERLAY",
+    "curve_available": true
+  },
+  {
+    "id": "NEXT-OPEN-3M",
+    "label": "Next-Open + 3M Treasury",
+    "class": "cash overlay",
+    "cagr_pct": 13.231167145420274,
+    "max_dd_pct": -10.253742657168784,
+    "sharpe": 1.5286779503050325,
+    "status": "FORWARD_COMPATIBLE_CASH_OVERLAY",
+    "curve_available": true
+  },
+  {
+    "id": "100PCT",
+    "label": "100% Stock Exposure",
+    "class": "stress/control",
+    "cagr_pct": 10.31298888518565,
+    "max_dd_pct": -24.13278925078471,
+    "sharpe": 0.8776897298208317,
+    "status": "REJECTED_AS_PRIMARY",
+    "curve_available": true
+  },
+  {
+    "id": "CAPITAL-LAYER-V1",
+    "label": "Core + 20% Risk V1",
+    "class": "portfolio capital layer",
+    "cagr_pct": 26.760733338275088,
+    "max_dd_pct": -12.69879171748978,
+    "sharpe": 1.4896526302050028,
+    "status": "LEGACY_PORTFOLIO_RESEARCH",
+    "curve_available": false
+  }
+]
