@@ -28,8 +28,15 @@ jobs:
       - name: Validate dashboard
         run: |
           node --check assets/app.js
-          npm install --no-save --ignore-scripts jsdom@25.0.1 >/dev/null
+          npm install --no-save --ignore-scripts jsdom@25.0.1 puppeteer-core@24.31.0 >/dev/null
           node tests/dashboard_smoke.mjs
+          CHROME_BIN="$(which google-chrome || which google-chrome-stable || which chromium || which chromium-browser || true)"
+          test -n "$CHROME_BIN"
+          python -m http.server 8000 --bind 127.0.0.1 >/tmp/risk_dashboard_http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+          sleep 1
+          CHROME_BIN="$CHROME_BIN" node tests/dashboard_browser.mjs
           python -m json.tool data/summary.json >/dev/null
           python -m json.tool data/strategy_spec.json >/dev/null
           python -m json.tool data/forward_status.json >/dev/null
