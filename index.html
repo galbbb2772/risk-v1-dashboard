@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Risk V1 Research Dashboard</title>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
-<link rel="stylesheet" href="assets/style.css?v=20261030-4">
+<link rel="stylesheet" href="assets/style.css?v=20261030-5">
 </head>
 <body>
 <div class="wrap">
@@ -44,6 +44,10 @@
         <div class="dates"><input id="historyStart" type="date"><span>→</span><input id="historyEnd" type="date"><button id="historyApply">应用</button></div>
       </div>
       <div id="historyChart" class="chart"></div>
+      <div class="capitalFallbackBlock">
+        <div class="tiny"><b>Capital Layer V1 审计净值（独立 SVG 备份显示）</b> · 这条线不依赖 Plotly，最终必须显示 5.2803x。</div>
+        <div id="capitalHistoryFallback" class="capitalSvgWrap"></div>
+      </div>
     </div>
     <div class="card section">
       <h2>版本 Drawdown</h2>
@@ -96,6 +100,7 @@
     <div class="card section">
       <h2>Capital Layer V1 审计净值</h2>
       <div class="tiny">年度审计节点复利：2019-09-05 = 1.000x，最终 2026-09-11 = 5.2803x。这里只连接经过最终 Audit 验证的年度端点，不伪造日度净值。</div>
+      <div id="capitalNavFallback" class="capitalSvgWrap capitalSvgLarge"></div>
       <div id="capitalNavChart" class="chart"></div>
     </div>
     <div class="grid2 section">
@@ -166,6 +171,6 @@
     </div>
   </section>
 </div>
-<script src="assets/app.js?v=20261030-4"></script>
+<script src="assets/app.js?v=20261030-5"></script>
 </body>
 </html>
