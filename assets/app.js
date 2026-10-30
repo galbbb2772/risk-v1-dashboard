@@ -142,44 +142,8 @@ function bindTabs(){
   });
 }
 
-let S,RISK,TBILL,MODEL,ANNUAL,MONTHLY,TRADES,FSTAT,FNAV,FTR,ACCOUNT,SPEC,EXEC,LEGACY,LEGACYDD,VERS,CAM,CMC,CAPAN,CRS,CDDA,CDDE,CCORR,CREG,CWORST,CRISIS;
-let historyRange,historyBusy=false;
-
-function capitalAuditSeries(){
-  const [capStart,capEnd]=CAM.period.split(" to ");
-  const dates=[capStart],nav=[1];
-  let v=1;
-  CAPAN.forEach(r=>{
-    v*=1+num(r.return_pct)/100;
-    dates.push(String(r.year)===String(capEnd).slice(0,4)?capEnd:String(r.year)+"-12-31");
-    nav.push(v);
-  });
-  if(nav.length)nav[nav.length-1]=num(CAM.ending_multiple);
-  return {dates,nav,start:capStart,end:capEnd};
-}
-function renderCapitalSvg(targetId,height=280){
-  const host=document.getElementById(targetId); if(!host||!CAM||!CAPAN)return;
-  const ser=capitalAuditSeries(),W=1200,H=height,L=72,R=34,T=26,B=48;
-  const times=ser.dates.map(d=>Date.parse(d)),t0=Math.min(...times),t1=Math.max(...times);
-  const ymin=.8,ymax=Math.max(5.8,num(CAM.ending_multiple)*1.08);
-  const x=t=>L+(t-t0)/(t1-t0)*(W-L-R);
-  const y=v=>T+(ymax-v)/(ymax-ymin)*(H-T-B);
-  const pts=ser.nav.map((v,i)=>x(times[i]).toFixed(1)+","+y(v).toFixed(1)).join(" ");
-  const yTicks=[1,2,3,4,5];
-  const grids=yTicks.map(v=>`<line class="grid" x1="${L}" y1="${y(v)}" x2="${W-R}" y2="${y(v)}"/><text class="label" x="${L-12}" y="${y(v)+4}" text-anchor="end">${v.toFixed(1)}x</text>`).join("");
-  const dots=ser.nav.map((v,i)=>`<circle class="dot" cx="${x(times[i])}" cy="${y(v)}" r="${i===ser.nav.length-1?7:5}"/><text class="${i===ser.nav.length-1?"final":"value"}" x="${x(times[i])}" y="${y(v)-12}" text-anchor="${i===0?"start":i===ser.nav.length-1?"end":"middle"}">${v.toFixed(i===ser.nav.length-1?3:2)}x</text>`).join("");
-  const years=ser.dates.map((d,i)=>({d,i,y:d.slice(0,4)})).filter((o,i,a)=>i===0||i===a.length-1||o.y!==a[i-1].y);
-  const xlabels=years.map(o=>`<text class="label" x="${x(times[o.i])}" y="${H-16}" text-anchor="${o.i===0?"start":o.i===ser.dates.length-1?"end":"middle"}">${o.y}</text>`).join("");
-  host.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Capital Layer V1 audited NAV from 1.00x to ${num(CAM.ending_multiple).toFixed(4)}x">
-    ${grids}
-    <line class="axis" x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}"/>
-    <line class="axis" x1="${L}" y1="${T}" x2="${L}" y2="${H-B}"/>
-    <polyline class="line" points="${pts}"/>
-    ${dots}
-    ${xlabels}
-  </svg>`;
-  host.dataset.finalNav=num(CAM.ending_multiple).toFixed(10);
-}
+let S,RISK,TBILL,MODEL,ANNUAL,MONTHLY,TRADES,FSTAT,FNAV,FTR,ACCOUNT,SPEC,EXEC,LEGACY,LEGACYDD,VERS,CAM,CMC,CAPAN,CRS,CDDA,CDDE,CCORR,CREG,CWORST,CRISIS,CAPDAILY;
+let historyRange,capitalRange=null;
 
 function renderHistory(range){
   const dates=EXEC.map(r=>r.date),safe=clampRange(dates,range[0],range[1],30);historyRange=safe;
@@ -191,8 +155,7 @@ function renderHistory(range){
     {x:dates,y:navT6,name:"Next-Open → T+6",type:"scatter",mode:"lines",line:{width:1.8,color:COLORS.t6}},
     {x:TBILL.map(r=>r.date),y:TBILL.map(r=>num(r.nav)),name:"Next-Open + 3M Treasury",type:"scatter",mode:"lines",line:{width:2.5,color:COLORS.tbill}},
     {x:LEGACY.map(r=>r.date),y:LEGACY.map(r=>1+num(r.legacy_risk_v1_3m)/100),name:"Same-Close + 3M Treasury · monthly evidence",type:"scatter",mode:"lines+markers",marker:{size:4},line:{width:1.7,dash:"dash",color:COLORS.legacyTbill}},
-    {x:LEGACY.map(r=>r.date),y:LEGACY.map(r=>1+num(r.exposure_100)/100),name:"100% Stock Exposure · monthly evidence",type:"scatter",mode:"lines+markers",marker:{size:4},line:{width:1.6,dash:"dot",color:COLORS.full}},
-    {x:capitalAuditSeries().dates,y:capitalAuditSeries().nav,name:"Capital Layer V1 · audited checkpoints",type:"scatter",mode:"lines+markers",marker:{size:7,symbol:"diamond"},line:{width:2.8,dash:"dash",color:COLORS.gold}}
+    {x:LEGACY.map(r=>r.date),y:LEGACY.map(r=>1+num(r.exposure_100)/100),name:"100% Stock Exposure · monthly evidence",type:"scatter",mode:"lines+markers",marker:{size:4},line:{width:1.6,dash:"dot",color:COLORS.full}}
   ];
   const lay={...baseLayout,xaxis:{...boundedX(dates,safe,true),title:"Market date"},yaxis:{...baseLayout.yaxis,title:"NAV multiple",fixedrange:true}};
   Plotly.react("historyChart",traces,lay,plotCfg);
@@ -226,7 +189,6 @@ function renderHistory(range){
     metric("历史交易",S.historical.selected_trades)
   ].join("");
   $("#versionTable").innerHTML=table(VERS,[["版本",r=>esc(r.label)],["分类",r=>esc(r.class)],["CAGR",r=>pct(r.cagr_pct)],["MaxDD",r=>pct(r.max_dd_pct)],["Sharpe",r=>fmt(r.sharpe,2)],["曲线证据",r=>r.curve_available?"<span class='pill'>有</span>":"<span class='pill'>指标-only</span>"],["状态",r=>esc(r.status)]]);
-  renderCapitalSvg("capitalHistoryFallback",250);
 }
 function setHistoryWindow(range){
   const dates=EXEC.map(r=>r.date),safe=clampRange(dates,range[0],range[1],30);
@@ -289,6 +251,36 @@ function renderTreasury(){
   $("#crisisTable").innerHTML=table(CRISIS,[["窗口",r=>esc(r.window)],["系列",r=>esc(r.series)],["窗口收益",r=>pct(num(r.return)*100)]]);
 }
 
+function setCapitalWindow(range){
+  const dates=CAPDAILY.map(r=>r.date),safe=clampRange(dates,range[0],range[1],30);
+  capitalRange=safe;
+  $("#capitalStart").value=safe[0];$("#capitalEnd").value=safe[1];
+  const el=$("#capitalNavChart");
+  const yR=visibleTraceRange(el?.data||[],safe,.06);
+  const state=zoomGroups["capital-nav"]||(zoomGroups["capital-nav"]={busy:false});
+  state.busy=true;
+  const jobs=[Plotly.relayout("capitalNavChart",{"xaxis.range":safe,"xaxis.autorange":false})];
+  if(yR)jobs.push(Plotly.relayout("capitalNavChart",{"yaxis.range":yR,"yaxis.autorange":false}));
+  return Promise.all(jobs).finally(()=>state.busy=false);
+}
+function bindCapital(){
+  const dates=CAPDAILY.map(r=>r.date);
+  $("#capitalStart").min=dates[0];$("#capitalStart").max=dates.at(-1);
+  $("#capitalEnd").min=dates[0];$("#capitalEnd").max=dates.at(-1);
+  if(!$("#capitalPresets").__bound){
+    $("#capitalPresets").onclick=e=>{
+      const b=e.target.closest("button[data-range]");if(!b)return;
+      $$("#capitalPresets button").forEach(x=>x.classList.toggle("active",x===b));
+      setCapitalWindow(presetRange(dates,b.dataset.range));
+    };
+    $("#capitalApply").onclick=()=>setCapitalWindow([$("#capitalStart").value,$("#capitalEnd").value]);
+    $("#capitalReset").onclick=()=>{
+      $$("#capitalPresets button").forEach(x=>x.classList.toggle("active",x.dataset.range==="ALL"));
+      setCapitalWindow([dates[0],dates.at(-1)]);
+    };
+    $("#capitalPresets").__bound=true;
+  }
+}
 function renderCapital(){
   const core=CMC.find(r=>num(r.sleeve)===0),sel=CMC.find(r=>Math.abs(num(r.sleeve)-.2)<1e-9);
   $("#capitalCards").innerHTML=[
@@ -299,13 +291,27 @@ function renderCapital(){
     metric("平均股票暴露",pct(CAM.avg_exposure_pct)),
     metric("Risk+互动增长占比",pct(CAM.riskv1_incremental_log_growth_share_pct))
   ].join("");
-  renderCapitalSvg("capitalNavFallback",360);
-  const capSeries=capitalAuditSeries(),capDates=capSeries.dates,capNav=capSeries.nav,capEnd=capSeries.end;
-  Plotly.react("capitalNavChart",[
-    {x:capDates,y:capNav,name:"Capital Layer V1 · audited annual checkpoints",type:"scatter",mode:"lines+markers",line:{width:3,color:COLORS.gold},marker:{size:8}},
-    {x:[capEnd],y:[num(CAM.ending_multiple)],name:"Final audited NAV",type:"scatter",mode:"markers+text",text:[fmt(CAM.ending_multiple,3)+"x"],textposition:"top left",marker:{size:13,color:COLORS.tbill,symbol:"diamond"}}
-  ],{...baseLayout,xaxis:boundedX(capDates,null,false),yaxis:{...baseLayout.yaxis,title:"Audited NAV multiple",range:[0.8,Math.ceil(num(CAM.ending_multiple)*1.12*10)/10],fixedrange:true}},plotCfg);
-  bindBoundedTimeZoom("capitalNavChart",capDates,3,[],"capital-nav");
+
+  const capDates=CAPDAILY.map(r=>r.date);
+  const safe=capitalRange||[capDates[0],capDates.at(-1)];
+  const capTraces=[
+    {x:capDates,y:CAPDAILY.map(r=>num(r.capital_layer_v1)),name:"Capital Layer V1 · real daily account replay",type:"scatter",mode:"lines",line:{width:2.8,color:COLORS.gold}},
+    {x:capDates,y:CAPDAILY.map(r=>num(r.core_only_equity)),name:"Core only · same daily account clock",type:"scatter",mode:"lines",line:{width:1.8,color:COLORS.same}}
+  ];
+  const yR=visibleTraceRange(capTraces,safe,.06);
+  Plotly.react("capitalNavChart",capTraces,{
+    ...baseLayout,
+    xaxis:{...boundedX(capDates,safe,true),title:"Market date"},
+    yaxis:{...baseLayout.yaxis,title:"Account NAV multiple",fixedrange:true,...(yR?{range:yR,autorange:false}:{})}
+  },plotCfg);
+  bindBoundedTimeZoom("capitalNavChart",capDates,30,[],"capital-nav",r=>{
+    capitalRange=r;$("#capitalStart").value=r[0];$("#capitalEnd").value=r[1];
+    const yy=visibleTraceRange($("#capitalNavChart")?.data||[],r,.06);
+    return yy?Plotly.relayout("capitalNavChart",{"yaxis.range":yy,"yaxis.autorange":false}):null;
+  });
+  bindCapital();
+  $("#capitalStart").value=safe[0];$("#capitalEnd").value=safe[1];
+
   const x=CMC.map(r=>num(r.sleeve)*100);
   Plotly.react("capitalMarginalChart",[
     {x,y:CMC.map(r=>num(r.cagr_pct)),name:"CAGR %",type:"scatter",mode:"lines+markers",line:{width:2.4,color:COLORS.strict}},
@@ -366,12 +372,12 @@ function renderRules(){
 
 (async()=>{
   bindTabs();
-  [S,RISK,TBILL,MODEL,ANNUAL,MONTHLY,TRADES,FSTAT,FNAV,FTR,ACCOUNT,SPEC,EXEC,LEGACY,LEGACYDD,VERS,CAM,CMC,CAPAN,CRS,CDDA,CDDE,CCORR,CREG,CWORST,CRISIS]=await Promise.all([
+  [S,RISK,TBILL,MODEL,ANNUAL,MONTHLY,TRADES,FSTAT,FNAV,FTR,ACCOUNT,SPEC,EXEC,LEGACY,LEGACYDD,VERS,CAM,CMC,CAPAN,CRS,CDDA,CDDE,CCORR,CREG,CWORST,CRISIS,CAPDAILY]=await Promise.all([
     json("data/summary.json"),csv("data/risk_daily_mtm.csv"),csv("data/treasury_daily_nav.csv"),csv("data/model_metrics.csv"),csv("data/annual_returns.csv"),csv("data/monthly_vs_indices.csv"),csv("data/trades_308.csv"),
     json("data/forward_status.json"),csv("data/forward_daily_nav.csv"),csv("data/forward_trades.csv"),json("data/account_state.json"),json("data/strategy_spec.json"),
     csv("data/execution_variants_daily.csv"),csv("data/legacy_monthly_cumulative_pct.csv"),csv("data/legacy_monthly_drawdown_pct.csv"),json("data/version_registry.json"),
     json("data/capital_audit_metrics.json"),csv("data/capital_marginal_curve.csv"),csv("data/capital_annual_performance.csv"),csv("data/capital_return_sources.csv"),
-    csv("data/capital_drawdown_attribution.csv"),csv("data/capital_drawdown_episodes.csv"),csv("data/capital_correlation_summary.csv"),csv("data/capital_market_regime_summary.csv"),csv("data/capital_worst_20_days.csv"),csv("data/crisis_windows.csv")
+    csv("data/capital_drawdown_attribution.csv"),csv("data/capital_drawdown_episodes.csv"),csv("data/capital_correlation_summary.csv"),csv("data/capital_market_regime_summary.csv"),csv("data/capital_worst_20_days.csv"),csv("data/crisis_windows.csv"),csv("data/capital_daily_curve.csv")
   ]);
   $("#asof").textContent="HIST "+S.historical_window.end+" · FWD "+(FSTAT.official_nav_rows?FNAV.at(-1)?.date:"PENDING");
   renderHistory([EXEC[0].date,EXEC.at(-1).date]);bindHistory();
