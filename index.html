@@ -9,61 +9,157 @@
 </head>
 <body>
 <div class="wrap">
-<header class="top">
-  <div><h1>Risk V1 Research Dashboard</h1><div class="muted">Strict Next-Open · 3M Treasury · 308 trades · Forward OOS</div></div>
-  <div id="asof" class="badge">LOADING</div>
-</header>
-
-<nav class="tabs">
-  <button class="tab active" data-tab="overview">总览</button>
-  <button class="tab" data-tab="treasury">3M 美债现金层</button>
-  <button class="tab" data-tab="trades">308 笔交易</button>
-  <button class="tab" data-tab="forward">Forward OOS</button>
-  <button class="tab" data-tab="rules">规则</button>
-</nav>
-
-<section id="overview" class="panel active">
-  <div id="overviewCards" class="kpis"></div>
-  <div class="card section">
-    <div class="sectionHead"><div><h2>历史净值</h2><div class="tiny">Risk V1 Strict Next-Open vs Risk V1 + 3M Treasury。可拖动、滑块和时间选择。</div></div><button id="historyReset" class="ghost">重置</button></div>
-    <div class="toolbar compact">
-      <div class="range" id="historyPresets"><button data-range="1Y">1Y</button><button data-range="3Y">3Y</button><button data-range="5Y">5Y</button><button class="active" data-range="ALL">ALL</button></div>
-      <div class="dates"><input id="historyStart" type="date"><span>→</span><input id="historyEnd" type="date"><button id="historyApply">应用</button></div>
+  <header class="top">
+    <div>
+      <div class="eyebrow">RISK MEAN REVERSION · CANONICAL RESEARCH</div>
+      <h1>Risk V1 Research Dashboard</h1>
+      <div class="muted">研究演化 · Strict Next-Open · 3M Treasury · Capital Layer · 308 Trades · Forward OOS</div>
     </div>
-    <div id="historyChart" class="chart"></div>
-  </div>
-  <div class="card section"><h2>历史 Drawdown</h2><div id="ddChart" class="chart smallchart"></div></div>
-  <div class="card section"><h2>年度收益</h2><div id="annualChart" class="chart mediumchart"></div></div>
-  <div class="note section">历史结果只用于研究与比较；Forward OOS 单独记账，不允许历史回填。</div>
-</section>
+    <div id="asof" class="badge">LOADING</div>
+  </header>
 
-<section id="treasury" class="panel">
-  <div id="treasuryCards" class="kpis"></div>
-  <div class="card section"><h2>累计表现对比</h2><div class="tiny">月度快照：Risk V1、Risk V1 + 3M Treasury、S&P 500、Nasdaq Composite、Dow Jones。</div><div id="benchmarkChart" class="chart"></div></div>
-  <div class="card section"><h2>模型版本对比</h2><div id="modelTable" class="tablewrap"></div></div>
-  <div class="note section">3M Treasury 是闲置现金管理层，不是第二个独立 Alpha；它必须和纯 Risk Alpha 分开记录。</div>
-</section>
+  <nav class="tabs">
+    <button class="tab active" data-tab="history">历史演化</button>
+    <button class="tab" data-tab="treasury">3M 美债层</button>
+    <button class="tab" data-tab="capital">Capital Layer</button>
+    <button class="tab" data-tab="trades">308 笔交易</button>
+    <button class="tab" data-tab="forward">Forward OOS</button>
+    <button class="tab" data-tab="rules">规则 / 版本</button>
+  </nav>
 
-<section id="trades" class="panel">
-  <div id="tradeCards" class="kpis"></div>
-  <div class="toolbar card section">
-    <div class="control grow"><label>搜索</label><input id="tradeSearch" type="search" placeholder="Ticker / 日期 / slot"></div>
-    <div class="control"><label>结果</label><div id="tradeCount" class="badge soft"></div></div>
-  </div>
-  <div class="card section"><div id="tradeTable" class="tablewrap tall"></div></div>
-</section>
+  <section id="history" class="panel active">
+    <div id="historyCards" class="kpis"></div>
+    <div class="card section">
+      <div class="sectionHead">
+        <div>
+          <h2>Risk V1 全历史版本曲线</h2>
+          <div class="tiny">日度可验证曲线用实线；只有月度历史证据的版本用虚线。不同证据粒度不会被伪装成同一种日度回测。</div>
+        </div>
+        <button id="historyReset" class="ghost">重置</button>
+      </div>
+      <div class="toolbar compact">
+        <div class="range" id="historyPresets">
+          <button data-range="1M">1M</button><button data-range="3M">3M</button><button data-range="6M">6M</button><button data-range="12M">12M</button><button data-range="3Y">3Y</button><button data-range="5Y">5Y</button><button class="active" data-range="ALL">ALL</button>
+        </div>
+        <div class="dates"><input id="historyStart" type="date"><span>→</span><input id="historyEnd" type="date"><button id="historyApply">应用</button></div>
+      </div>
+      <div id="historyChart" class="chart"></div>
+    </div>
+    <div class="card section">
+      <h2>版本 Drawdown</h2>
+      <div id="historyDDChart" class="chart smallchart"></div>
+    </div>
+    <div class="card section">
+      <h2>研究版本演化表</h2>
+      <div id="versionTable" class="tablewrap"></div>
+    </div>
+    <div class="note section">Fixed 3-slot 与 11/14 Conservative 的最终指标被保留，但目前没有同等级可验证的完整日度曲线，因此只列指标，不人为插值成历史线。</div>
+  </section>
 
-<section id="forward" class="panel">
-  <div id="forwardCards" class="kpis"></div>
-  <div class="card section"><h2>Forward OOS 净值</h2><div id="forwardChart" class="chart"></div><div id="forwardEmpty" class="empty"></div></div>
-  <div class="card section"><h2>当前三槽位账户</h2><div id="slotTable" class="tablewrap"></div></div>
-  <div class="card section"><h2>正式 Forward 交易</h2><div id="forwardTradeTable" class="tablewrap"></div></div>
-  <div id="forwardNote" class="note section"></div>
-</section>
+  <section id="treasury" class="panel">
+    <div id="treasuryCards" class="kpis"></div>
+    <div class="grid2 section">
+      <div class="card">
+        <h2>正式现金层：Strict Next-Open vs +3M Treasury</h2>
+        <div class="tiny">同一股票 Alpha；差异来自闲置现金收益。</div>
+        <div id="treasuryDailyChart" class="chart mediumchart"></div>
+      </div>
+      <div class="card">
+        <h2>3M Treasury 累计贡献</h2>
+        <div class="tiny">相对 0% Cash 账户的 NAV 增量，不把利息伪装成新 Alpha。</div>
+        <div id="treasuryUpliftChart" class="chart mediumchart"></div>
+      </div>
+    </div>
+    <div class="grid2 section">
+      <div class="card">
+        <h2>Same-Close 旧口径：现金层对照</h2>
+        <div id="treasuryLegacyChart" class="chart mediumchart"></div>
+      </div>
+      <div class="card">
+        <h2>年度收益：0% Cash vs 3M Treasury</h2>
+        <div id="treasuryAnnualChart" class="chart mediumchart"></div>
+      </div>
+    </div>
+    <div class="card section">
+      <h2>五个账户版本</h2>
+      <div id="modelTable" class="tablewrap"></div>
+    </div>
+    <div class="card section">
+      <h2>危机窗口</h2>
+      <div id="crisisTable" class="tablewrap"></div>
+    </div>
+    <div class="note section"><b>分类：</b>3M Treasury 是 cash-management overlay。正式独立 Alpha 仍然只有 Risk V1 Strict Next-Open；现金层必须单独归因。</div>
+  </section>
 
-<section id="rules" class="panel">
-  <div class="card section prose" id="rulesContent"></div>
-</section>
+  <section id="capital" class="panel">
+    <div id="capitalCards" class="kpis"></div>
+    <div class="grid2 section">
+      <div class="card">
+        <h2>Risk Sleeve 边际曲线</h2>
+        <div class="tiny">0% / 10% / 20% / 30% / 40%。20% 是冻结的历史效率拐点。</div>
+        <div id="capitalMarginalChart" class="chart mediumchart"></div>
+      </div>
+      <div class="card">
+        <h2>年度收益与平均暴露</h2>
+        <div id="capitalAnnualChart" class="chart mediumchart"></div>
+      </div>
+    </div>
+    <div class="grid2 section">
+      <div class="card">
+        <h2>收益来源</h2>
+        <div id="capitalSourceChart" class="chart mediumchart"></div>
+      </div>
+      <div class="card">
+        <h2>Core / Risk V1 相关性漂移</h2>
+        <div id="capitalCorrChart" class="chart mediumchart"></div>
+      </div>
+    </div>
+    <div class="card section">
+      <h2>主要回撤归因</h2>
+      <div id="capitalDDTable" class="tablewrap"></div>
+    </div>
+    <div class="grid2 section">
+      <div class="card"><h2>市场状态表现</h2><div id="capitalRegimeTable" class="tablewrap"></div></div>
+      <div class="card"><h2>最差单日</h2><div id="capitalWorstTable" class="tablewrap"></div></div>
+    </div>
+    <div class="note section"><b>数据纪律：</b>最终 Audit Package 的正式 Capital Layer V1 末值是 5.2803x。旧的 pre-audit joint daily curve 末值 5.4038x，与最终审计口径不一致，因此本 Dashboard 不把那条旧曲线冒充正式 Capital Layer 日度净值。</div>
+  </section>
+
+  <section id="trades" class="panel">
+    <div id="tradeCards" class="kpis"></div>
+    <div class="grid2 section">
+      <div class="card"><h2>单笔净收益分布</h2><div id="tradeHist" class="chart mediumchart"></div></div>
+      <div class="card"><h2>年度交易数量</h2><div id="tradeYearChart" class="chart mediumchart"></div></div>
+    </div>
+    <div class="toolbar card section">
+      <div class="control grow"><label>搜索交易</label><input id="tradeSearch" type="search" placeholder="Ticker / 日期 / Slot"></div>
+      <div class="control"><label>显示</label><div id="tradeCount" class="badge soft"></div></div>
+    </div>
+    <div class="card section"><div id="tradeTable" class="tablewrap tall"></div></div>
+  </section>
+
+  <section id="forward" class="panel">
+    <div id="forwardCards" class="kpis"></div>
+    <div class="card section">
+      <div class="sectionHead">
+        <div><h2>正式 Forward OOS NAV</h2><div class="tiny">只允许 recovered engine 之后的真实扫描写入；历史数据永不回填。</div></div>
+      </div>
+      <div id="forwardChart" class="chart"></div>
+      <div id="forwardEmpty" class="empty"></div>
+    </div>
+    <div class="grid2 section">
+      <div class="card"><h2>三槽位账户</h2><div id="slotTable" class="tablewrap"></div></div>
+      <div class="card"><h2>正式 Forward 交易</h2><div id="forwardTradeTable" class="tablewrap"></div></div>
+    </div>
+    <div id="forwardNote" class="note section"></div>
+  </section>
+
+  <section id="rules" class="panel">
+    <div class="grid2 section">
+      <div class="card prose" id="rulesContent"></div>
+      <div class="card prose" id="governanceContent"></div>
+    </div>
+  </section>
 </div>
 <script src="assets/app.js"></script>
 </body>
