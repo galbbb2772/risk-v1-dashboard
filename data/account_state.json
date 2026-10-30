@@ -1,0 +1,42 @@
+{
+  "schema": "RISK_V1_FORWARD_ACCOUNT_STATE_V1",
+  "initialized_on": "2026-10-29",
+  "accounting": "PERSISTENT_THREE_SLOT_SUBACCOUNTS",
+  "cash_yield": "0_PERCENT_CANONICAL",
+  "slots": [
+    {
+      "slot": 1,
+      "cash": 0.3333333333333333,
+      "status": "IDLE",
+      "symbol": null,
+      "entry_date": null,
+      "exit_date": null,
+      "entry_price": null,
+      "start_capital": null
+    },
+    {
+      "slot": 2,
+      "cash": 0.3333333333333333,
+      "status": "IDLE",
+      "symbol": null,
+      "entry_date": null,
+      "exit_date": null,
+      "entry_price": null,
+      "start_capital": null
+    },
+    {
+      "slot": 3,
+      "cash": 0.3333333333333333,
+      "status": "IDLE",
+      "symbol": null,
+      "entry_date": null,
+      "exit_date": null,
+      "entry_price": null,
+      "start_capital": null
+    }
+  ],
+  "nav": 1,
+  "last_market_date": null,
+  "official_rows": 0,
+  "note": "Initialized clean for genuine post-recovery Forward. Historical balances are not carried into this prospective account."
+}
