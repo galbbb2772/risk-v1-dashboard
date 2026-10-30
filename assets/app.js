@@ -5,7 +5,7 @@ const pct=(v,d=2)=>Number.isFinite(num(v))?num(v).toFixed(d)+"%":"—";
 const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 const COLORS={same:"#9fb7d9",strict:"#8cb8ff",t6:"#b59cff",tbill:"#56d6a4",legacyTbill:"#76c9b0",full:"#ff7d89",gold:"#f3c76b",orange:"#ff9a72",muted:"#8594ab"};
 const baseLayout={paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(0,0,0,0)",font:{color:"#cad5e7"},margin:{l:62,r:28,t:34,b:58},hovermode:"x unified",legend:{orientation:"h",y:1.14,x:0},dragmode:"pan",xaxis:{gridcolor:"#182235"},yaxis:{gridcolor:"#182235"}};
-const plotCfg={responsive:true,displaylogo:false,displayModeBar:false,scrollZoom:false,doubleClick:"reset"};
+const plotCfg={responsive:true,displaylogo:false,displayModeBar:false,scrollZoom:true,doubleClick:"reset"};
 
 function parseCSV(text){
   const rows=[];let row=[],cell="",q=false;
@@ -33,6 +33,32 @@ function presetRange(dates,key){
   const start=new Date(Date.parse(dates.at(-1))-days*86400000).toISOString().slice(0,10);
   return[dates[Math.max(0,nearestIndex(dates,start))],dates.at(-1)];
 }
+function bindBoundedTimeZoom(id,dates,minPts=30,syncIds=[]){
+  const el=$("#"+id); if(!el||el.__boundedZoom)return;
+  const bounds=[dates[0],dates.at(-1)];
+  let busy=false;
+  el.on("plotly_relayout",ev=>{
+    if(busy)return;
+    let a=ev["xaxis.range[0]"],b=ev["xaxis.range[1]"];
+    if(ev["xaxis.autorange"]){a=bounds[0];b=bounds[1]}
+    if(a==null||b==null)return;
+    const safe=clampRange(dates,a,b,minPts);
+    const targets=[id,...syncIds].filter((v,i,arr)=>arr.indexOf(v)===i);
+    busy=true;
+    Promise.all(targets.map(t=>Plotly.relayout(t,{"xaxis.range":safe,"xaxis.autorange":false})))
+      .finally(()=>busy=false);
+  });
+  el.__boundedZoom=true;
+}
+function boundedX(dates,range=null,slider=false){
+  return {...baseLayout.xaxis,
+    range:range||[dates[0],dates.at(-1)],
+    autorange:false,
+    minallowed:dates[0],
+    maxallowed:dates.at(-1),
+    rangeslider:slider?{visible:true,thickness:.08}:undefined
+  };
+}
 function drawdown(nav){let peak=-Infinity;return nav.map(v=>{v=num(v);peak=Math.max(peak,v);return peak>0?(v/peak-1)*100:0})}
 function bindTabs(){$$(".tab").forEach(b=>b.onclick=()=>{$$(".tab").forEach(x=>x.classList.remove("active"));$$(".panel").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("#"+b.dataset.tab).classList.add("active");setTimeout(()=>window.dispatchEvent(new Event("resize")),100)})}
 
@@ -51,7 +77,7 @@ function renderHistory(range){
     {x:LEGACY.map(r=>r.date),y:LEGACY.map(r=>1+num(r.legacy_risk_v1_3m)/100),name:"Same-Close + 3M Treasury · monthly evidence",type:"scatter",mode:"lines+markers",marker:{size:4},line:{width:1.7,dash:"dash",color:COLORS.legacyTbill}},
     {x:LEGACY.map(r=>r.date),y:LEGACY.map(r=>1+num(r.exposure_100)/100),name:"100% Stock Exposure · monthly evidence",type:"scatter",mode:"lines+markers",marker:{size:4},line:{width:1.6,dash:"dot",color:COLORS.full}}
   ];
-  const lay={...baseLayout,xaxis:{...baseLayout.xaxis,range:safe,rangeslider:{visible:true,thickness:.08},title:"Market date"},yaxis:{...baseLayout.yaxis,title:"NAV multiple"}};
+  const lay={...baseLayout,xaxis:{...boundedX(dates,safe,true),title:"Market date"},yaxis:{...baseLayout.yaxis,title:"NAV multiple",fixedrange:true}};
   Plotly.react("historyChart",traces,lay,plotCfg);
   const dd=[
     {x:dates,y:drawdown(navSame),name:"Same-Close",type:"scatter",mode:"lines",line:{width:1.7,color:COLORS.same}},
@@ -61,8 +87,10 @@ function renderHistory(range){
     {x:LEGACYDD.map(r=>r.date),y:LEGACYDD.map(r=>num(r.legacy_risk_v1_3m)),name:"Same-Close + 3M · monthly DD",type:"scatter",mode:"lines",line:{width:1.5,dash:"dash",color:COLORS.legacyTbill}},
     {x:LEGACYDD.map(r=>r.date),y:LEGACYDD.map(r=>num(r.exposure_100)),name:"100% Exposure · monthly DD",type:"scatter",mode:"lines",line:{width:1.5,dash:"dot",color:COLORS.full}}
   ];
-  Plotly.react("historyDDChart",dd,{...baseLayout,xaxis:{...baseLayout.xaxis,range:safe},yaxis:{...baseLayout.yaxis,title:"Drawdown %",ticksuffix:"%"}},plotCfg);
-  const h=$("#historyChart");if(!h.__bound){h.on("plotly_relayout",ev=>{if(historyBusy)return;const a=ev["xaxis.range[0]"],b=ev["xaxis.range[1]"];if(a!=null&&b!=null){const r=clampRange(dates,a,b,30);historyBusy=true;Promise.all([Plotly.relayout("historyChart",{"xaxis.range":r}),Plotly.relayout("historyDDChart",{"xaxis.range":r})]).finally(()=>historyBusy=false);historyRange=r;$("#historyStart").value=r[0];$("#historyEnd").value=r[1]}});h.__bound=true}
+  Plotly.react("historyDDChart",dd,{...baseLayout,xaxis:boundedX(dates,safe,false),yaxis:{...baseLayout.yaxis,title:"Drawdown %",ticksuffix:"%",fixedrange:true}},plotCfg);
+  bindBoundedTimeZoom("historyChart",dates,30,["historyDDChart"]);
+  bindBoundedTimeZoom("historyDDChart",dates,30,["historyChart"]);
+  const h=$("#historyChart"); if(!h.__dateSync){h.on("plotly_relayout",ev=>{const a=ev["xaxis.range[0]"],b=ev["xaxis.range[1]"];if(a!=null&&b!=null){const r=clampRange(dates,a,b,30);historyRange=r;$("#historyStart").value=r[0];$("#historyEnd").value=r[1]}});h.__dateSync=true}
   $("#historyCards").innerHTML=[
     metric("Fixed 3-slot CAGR","9.48%"),
     metric("Risk V1 10/14 CAGR","10.78%"),
@@ -94,17 +122,20 @@ function renderTreasury(){
   Plotly.react("treasuryDailyChart",[
     {x:RISK.map(r=>r.date),y:RISK.map(r=>num(r.mtm_nav)),name:"Next-Open Cash 0%",type:"scatter",mode:"lines",line:{width:2.2,color:COLORS.strict}},
     {x:TBILL.map(r=>r.date),y:TBILL.map(r=>num(r.nav)),name:"Next-Open + 3M Treasury",type:"scatter",mode:"lines",line:{width:2.4,color:COLORS.tbill}}
-  ],{...baseLayout,xaxis:{...baseLayout.xaxis,rangeslider:{visible:true,thickness:.08}},yaxis:{...baseLayout.yaxis,title:"NAV"}},plotCfg);
+  ],{...baseLayout,xaxis:boundedX(RISK.map(r=>r.date),null,true),yaxis:{...baseLayout.yaxis,title:"NAV",fixedrange:true}},plotCfg);
   const riskMap=new Map(RISK.map(r=>[r.date,num(r.mtm_nav)]));
   const upl=TBILL.filter(r=>riskMap.has(r.date)).map(r=>({date:r.date,pp:(num(r.nav)-riskMap.get(r.date))*100,relative:(num(r.nav)/riskMap.get(r.date)-1)*100}));
   Plotly.react("treasuryUpliftChart",[
     {x:upl.map(r=>r.date),y:upl.map(r=>r.pp),name:"NAV uplift vs 0% cash",type:"scatter",mode:"lines",line:{width:2.3,color:COLORS.tbill},fill:"tozeroy"},
     {x:upl.map(r=>r.date),y:upl.map(r=>r.relative),name:"Relative uplift %",type:"scatter",mode:"lines",line:{width:1.5,dash:"dash",color:COLORS.gold},yaxis:"y2"}
-  ],{...baseLayout,yaxis:{...baseLayout.yaxis,title:"Initial-capital pp"},yaxis2:{title:"Relative uplift %",overlaying:"y",side:"right",showgrid:false,ticksuffix:"%"}},plotCfg);
+  ],{...baseLayout,xaxis:boundedX(upl.map(r=>r.date)),yaxis:{...baseLayout.yaxis,title:"Initial-capital pp",fixedrange:true},yaxis2:{title:"Relative uplift %",overlaying:"y",side:"right",showgrid:false,ticksuffix:"%",fixedrange:true}},plotCfg);
   Plotly.react("treasuryLegacyChart",[
     {x:LEGACY.map(r=>r.date),y:LEGACY.map(r=>1+num(r.legacy_risk_v1)/100),name:"Same-Close Risk V1",type:"scatter",mode:"lines+markers",marker:{size:4},line:{width:2,color:COLORS.same}},
     {x:LEGACY.map(r=>r.date),y:LEGACY.map(r=>1+num(r.legacy_risk_v1_3m)/100),name:"Same-Close + 3M Treasury",type:"scatter",mode:"lines+markers",marker:{size:4},line:{width:2.3,color:COLORS.legacyTbill}}
-  ],{...baseLayout,yaxis:{...baseLayout.yaxis,title:"Monthly-evidence NAV"}},plotCfg);
+  ],{...baseLayout,xaxis:boundedX(LEGACY.map(r=>r.date)),yaxis:{...baseLayout.yaxis,title:"Monthly-evidence NAV",fixedrange:true}},plotCfg);
+  bindBoundedTimeZoom("treasuryDailyChart",RISK.map(r=>r.date),30);
+  bindBoundedTimeZoom("treasuryUpliftChart",upl.map(r=>r.date),30);
+  bindBoundedTimeZoom("treasuryLegacyChart",LEGACY.map(r=>r.date),6);
   const ann0=ANNUAL.map(r=>num(r["Next-Open Cash 0%"])*100),annT=ANNUAL.map(r=>num(r["Next-Open + 3M美债"])*100);
   Plotly.react("treasuryAnnualChart",[
     {x:ANNUAL.map(r=>r.year),y:ann0,name:"0% Cash",type:"bar",marker:{color:COLORS.strict}},
@@ -168,7 +199,7 @@ function renderForward(){
   ].join("");
   if(FNAV.length){
     $("#forwardEmpty").style.display="none";
-    Plotly.react("forwardChart",[{x:FNAV.map(r=>r.date),y:FNAV.map(r=>num(r.nav)),name:"Risk V1 Forward",type:"scatter",mode:"lines+markers",line:{width:2.5,color:COLORS.strict}}],{...baseLayout,xaxis:{...baseLayout.xaxis,rangeslider:{visible:true,thickness:.08}},yaxis:{...baseLayout.yaxis,title:"Forward NAV"}},plotCfg);
+    Plotly.react("forwardChart",[{x:FNAV.map(r=>r.date),y:FNAV.map(r=>num(r.nav)),name:"Risk V1 Forward",type:"scatter",mode:"lines+markers",line:{width:2.5,color:COLORS.strict}}],{...baseLayout,xaxis:boundedX(FNAV.map(r=>r.date),null,true),yaxis:{...baseLayout.yaxis,title:"Forward NAV",fixedrange:true}},plotCfg);\n    bindBoundedTimeZoom("forwardChart",FNAV.map(r=>r.date),Math.min(10,FNAV.length));
   }else{
     Plotly.purge("forwardChart");$("#forwardEmpty").style.display="block";$("#forwardEmpty").innerHTML="<b>暂无正式 Forward NAV</b><br>冻结引擎与历史契约已验证通过；目前仍没有 post-recovery 的正式扫描行。";
   }
