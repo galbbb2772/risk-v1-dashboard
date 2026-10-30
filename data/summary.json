@@ -1,0 +1,39 @@
+{
+  "schema": "RISK_V1_DASHBOARD_SUMMARY_V1",
+  "generated_on": "2026-10-30",
+  "source_repository": "galbbb2772/risk-v1-lab",
+  "canonical_strategy": "RISK-V1-STRICT-NEXT-OPEN",
+  "historical_window": {
+    "start": "2019-10-30",
+    "end": "2026-09-11"
+  },
+  "historical": {
+    "selected_trades": 308,
+    "final_nav": 2.0391527212487404,
+    "cumulative_return_pct": 103.91527212487404,
+    "cagr_pct": 10.934440280567713,
+    "max_drawdown_pct": -10.988846685945719,
+    "win_rate_pct": 63.3,
+    "profit_factor": 1.8
+  },
+  "treasury": {
+    "final_nav": 2.3472483105448774,
+    "cumulative_return_pct": 134.72483105448774,
+    "cagr_pct": 13.231167145420274,
+    "max_drawdown_pct": -10.253742657168784,
+    "sharpe": 1.5286779503050325,
+    "calmar": 1.2903744113540687
+  },
+  "forward": {
+    "freeze_date": "2026-09-16",
+    "engine_recovered_on": "2026-10-29",
+    "state": "ENGINE_VALIDATED_AWAITING_FIRST_OFFICIAL_SCAN",
+    "official_nav_rows": 0
+  },
+  "governance": [
+    "Historical and Forward OOS are separate.",
+    "No historical or reconstructed row may be counted as Forward.",
+    "3M Treasury is a cash-management overlay, not an independent Alpha.",
+    "Capital Layer is portfolio research, not an independent Alpha."
+  ]
+}
