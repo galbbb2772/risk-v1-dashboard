@@ -47,6 +47,10 @@ await new Promise(r=>setTimeout(r,350));
 if(errors.length) throw new Error("Runtime errors: "+errors.join(" | "));
 if(!document.querySelector("#historyCards")?.textContent.trim()) throw new Error("historyCards did not render");
 if(!document.querySelector("#capitalCards")?.textContent.includes("5.280")) throw new Error("Capital 5.280 card missing");
+const svgHist=document.querySelector("#capitalHistoryFallback svg");
+if(!svgHist) throw new Error("Native Capital SVG missing on history page");
+const svgFinal=Number(document.querySelector("#capitalHistoryFallback")?.dataset.finalNav);
+if(Math.abs(svgFinal-5.2802615045)>1e-6) throw new Error("Native Capital history SVG final NAV mismatch: "+svgFinal);
 
 const hist=ensurePlotEl("historyChart");
 if((hist.data||[]).length<7) throw new Error("Expected >=7 history traces including Capital Layer");
@@ -64,6 +68,9 @@ await new Promise(r=>setTimeout(r,120));
 if(!document.querySelector("#capital")?.classList.contains("active")) throw new Error("Capital panel did not activate");
 if(!(ensurePlotEl("capitalNavChart").data||[]).length) throw new Error("Capital NAV chart missing after tab activation");
 if(!document.querySelector("#capitalCards")?.textContent.includes("5.280")) throw new Error("Capital metrics disappeared after tab activation");
+if(!document.querySelector("#capitalNavFallback svg")) throw new Error("Native Capital SVG missing after Capital tab activation");
+const capSvgFinal=Number(document.querySelector("#capitalNavFallback")?.dataset.finalNav);
+if(Math.abs(capSvgFinal-5.2802615045)>1e-6) throw new Error("Capital tab native SVG final NAV mismatch: "+capSvgFinal);
 
 for(const key of ["1M","6M","12M","ALL"]){
   const btn=document.querySelector('#historyPresets button[data-range="'+key+'"]');
