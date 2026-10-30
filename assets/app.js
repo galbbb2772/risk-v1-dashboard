@@ -145,6 +145,19 @@ function bindTabs(){
 let S,RISK,TBILL,MODEL,ANNUAL,MONTHLY,TRADES,FSTAT,FNAV,FTR,ACCOUNT,SPEC,EXEC,LEGACY,LEGACYDD,VERS,CAM,CMC,CAPAN,CRS,CDDA,CDDE,CCORR,CREG,CWORST,CRISIS;
 let historyRange,historyBusy=false;
 
+function capitalAuditSeries(){
+  const [capStart,capEnd]=CAM.period.split(" to ");
+  const dates=[capStart],nav=[1];
+  let v=1;
+  CAPAN.forEach(r=>{
+    v*=1+num(r.return_pct)/100;
+    dates.push(String(r.year)===String(capEnd).slice(0,4)?capEnd:String(r.year)+"-12-31");
+    nav.push(v);
+  });
+  if(nav.length)nav[nav.length-1]=num(CAM.ending_multiple);
+  return {dates,nav,start:capStart,end:capEnd};
+}
+
 function renderHistory(range){
   const dates=EXEC.map(r=>r.date),safe=clampRange(dates,range[0],range[1],30);historyRange=safe;
   $("#historyStart").value=safe[0];$("#historyEnd").value=safe[1];
@@ -155,7 +168,8 @@ function renderHistory(range){
     {x:dates,y:navT6,name:"Next-Open → T+6",type:"scatter",mode:"lines",line:{width:1.8,color:COLORS.t6}},
     {x:TBILL.map(r=>r.date),y:TBILL.map(r=>num(r.nav)),name:"Next-Open + 3M Treasury",type:"scatter",mode:"lines",line:{width:2.5,color:COLORS.tbill}},
     {x:LEGACY.map(r=>r.date),y:LEGACY.map(r=>1+num(r.legacy_risk_v1_3m)/100),name:"Same-Close + 3M Treasury · monthly evidence",type:"scatter",mode:"lines+markers",marker:{size:4},line:{width:1.7,dash:"dash",color:COLORS.legacyTbill}},
-    {x:LEGACY.map(r=>r.date),y:LEGACY.map(r=>1+num(r.exposure_100)/100),name:"100% Stock Exposure · monthly evidence",type:"scatter",mode:"lines+markers",marker:{size:4},line:{width:1.6,dash:"dot",color:COLORS.full}}
+    {x:LEGACY.map(r=>r.date),y:LEGACY.map(r=>1+num(r.exposure_100)/100),name:"100% Stock Exposure · monthly evidence",type:"scatter",mode:"lines+markers",marker:{size:4},line:{width:1.6,dash:"dot",color:COLORS.full}},
+    {x:capitalAuditSeries().dates,y:capitalAuditSeries().nav,name:"Capital Layer V1 · audited checkpoints",type:"scatter",mode:"lines+markers",marker:{size:7,symbol:"diamond"},line:{width:2.8,dash:"dash",color:COLORS.gold}}
   ];
   const lay={...baseLayout,xaxis:{...boundedX(dates,safe,true),title:"Market date"},yaxis:{...baseLayout.yaxis,title:"NAV multiple",fixedrange:true}};
   Plotly.react("historyChart",traces,lay,plotCfg);
@@ -261,9 +275,7 @@ function renderCapital(){
     metric("平均股票暴露",pct(CAM.avg_exposure_pct)),
     metric("Risk+互动增长占比",pct(CAM.riskv1_incremental_log_growth_share_pct))
   ].join("");
-  const [capStart,capEnd]=CAM.period.split(" to ");
-  const capDates=[capStart],capNav=[1];let cap=1;
-  CAPAN.forEach(r=>{cap*=1+num(r.return_pct)/100;capDates.push(String(r.year)===String(capEnd).slice(0,4)?capEnd:String(r.year)+"-12-31");capNav.push(cap)});
+  const capSeries=capitalAuditSeries(),capDates=capSeries.dates,capNav=capSeries.nav,capEnd=capSeries.end;
   Plotly.react("capitalNavChart",[
     {x:capDates,y:capNav,name:"Capital Layer V1 · audited annual checkpoints",type:"scatter",mode:"lines+markers",line:{width:3,color:COLORS.gold},marker:{size:8}},
     {x:[capEnd],y:[num(CAM.ending_multiple)],name:"Final audited NAV",type:"scatter",mode:"markers+text",text:[fmt(CAM.ending_multiple,3)+"x"],textposition:"top left",marker:{size:13,color:COLORS.tbill,symbol:"diamond"}}
