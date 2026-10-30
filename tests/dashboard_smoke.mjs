@@ -56,6 +56,13 @@ if(histMax<2.3) throw new Error("3M Treasury/high history line appears clipped/m
 const cap=ensurePlotEl("capitalNavChart");
 const capMax=Math.max(...cap.data.flatMap(t=>(t.y||[]).map(Number).filter(Number.isFinite)));
 if(Math.abs(capMax-5.280261504516695)>1e-6) throw new Error("Capital Layer audited curve does not end at 5.2802615x");
+const capitalTab=document.querySelector('.tab[data-tab="capital"]');
+if(!capitalTab) throw new Error("Capital tab missing");
+capitalTab.click();
+await new Promise(r=>setTimeout(r,120));
+if(!document.querySelector("#capital")?.classList.contains("active")) throw new Error("Capital panel did not activate");
+if(!(ensurePlotEl("capitalNavChart").data||[]).length) throw new Error("Capital NAV chart missing after tab activation");
+if(!document.querySelector("#capitalCards")?.textContent.includes("5.280")) throw new Error("Capital metrics disappeared after tab activation");
 
 for(const key of ["1M","6M","12M","ALL"]){
   const btn=document.querySelector('#historyPresets button[data-range="'+key+'"]');
