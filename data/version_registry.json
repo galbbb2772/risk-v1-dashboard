@@ -87,6 +87,6 @@
     "max_dd_pct": -12.69879171748978,
     "sharpe": 1.4896526302050028,
     "status": "LEGACY_PORTFOLIO_RESEARCH",
-    "curve_available": false
+    "curve_available": true
   }
 ]
