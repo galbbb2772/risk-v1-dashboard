@@ -110,7 +110,30 @@ function visibleTraceRange(traces,range,padFrac=.06){
   const p=(mx-mn)*padFrac;return[mn-p,mx+p];
 }
 function drawdown(nav){let peak=-Infinity;return nav.map(v=>{v=num(v);peak=Math.max(peak,v);return peak>0?(v/peak-1)*100:0})}
-function bindTabs(){$$(".tab").forEach(b=>b.onclick=()=>{$$(".tab").forEach(x=>x.classList.remove("active"));$$(".panel").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("#"+b.dataset.tab).classList.add("active");setTimeout(()=>window.dispatchEvent(new Event("resize")),100)})}
+function refreshVisiblePlots(panelId){
+  const panel=$("#"+panelId); if(!panel)return;
+  setTimeout(()=>{
+    panel.querySelectorAll(".chart").forEach(el=>{
+      if(el.data&&window.Plotly?.Plots?.resize){
+        try{window.Plotly.Plots.resize(el)}catch(e){console.warn("Plot resize failed",el.id,e)}
+      }
+    });
+    window.dispatchEvent(new Event("resize"));
+  },80);
+}
+function bindTabs(){$(".tab").forEach(b=>b.onclick=()=>{
+  $(".tab").forEach(x=>x.classList.remove("active"));
+  $(".panel").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active");
+  $("#"+b.dataset.tab).classList.add("active");
+  if(window.__dashboardReady){
+    if(b.dataset.tab==="capital")renderCapital();
+    else if(b.dataset.tab==="treasury")renderTreasury();
+    else if(b.dataset.tab==="trades")renderTrades($("#tradeSearch")?.value||"");
+    else if(b.dataset.tab==="forward")renderForward();
+  }
+  refreshVisiblePlots(b.dataset.tab);
+})}
 
 let S,RISK,TBILL,MODEL,ANNUAL,MONTHLY,TRADES,FSTAT,FNAV,FTR,ACCOUNT,SPEC,EXEC,LEGACY,LEGACYDD,VERS,CAM,CMC,CAPAN,CRS,CDDA,CDDE,CCORR,CREG,CWORST,CRISIS;
 let historyRange,historyBusy=false;
@@ -309,5 +332,6 @@ function renderRules(){
   $("#asof").textContent="HIST "+S.historical_window.end+" · FWD "+(FSTAT.official_nav_rows?FNAV.at(-1)?.date:"PENDING");
   renderHistory([EXEC[0].date,EXEC.at(-1).date]);bindHistory();
   renderTreasury();renderCapital();renderTrades();renderForward();renderRules();
+  window.__dashboardReady=true;
   $("#tradeSearch").oninput=e=>renderTrades(e.target.value);
 })().catch(err=>{console.error(err);document.body.insertAdjacentHTML("beforeend","<div class='wrap bad'>Dashboard load error: "+esc(err.message||err)+"</div>")});
