@@ -32,10 +32,17 @@ jobs:
           python -m json.tool data/strategy_spec.json >/dev/null
           python -m json.tool data/forward_status.json >/dev/null
           python -m json.tool data/account_state.json >/dev/null
+          python -m json.tool data/version_registry.json >/dev/null
+          python -m json.tool data/capital_audit_metrics.json >/dev/null
           test -f index.html
           test -f data/risk_daily_mtm.csv
           test -f data/treasury_daily_nav.csv
           test -f data/trades_308.csv
+          test -f data/execution_variants_daily.csv
+          test -f data/legacy_monthly_cumulative_pct.csv
+          test -f data/capital_marginal_curve.csv
+          test -f data/capital_annual_performance.csv
+          test -f data/crisis_windows.csv
       - uses: actions/configure-pages@v5
         with:
           enablement: true
