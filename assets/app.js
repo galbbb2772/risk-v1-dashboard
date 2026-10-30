@@ -25,7 +25,7 @@ function table(rows,cols){return "<table><thead><tr>"+cols.map(c=>"<th>"+c[0]+"<
 function metric(label,value,cls=""){return "<div class='metric'><span class='small'>"+esc(label)+"</span><b class='"+cls+"'>"+esc(value)+"</b></div>"}
 function nearest(dates,date){const t=Date.parse(date);let b=0,dist=Infinity;dates.forEach((d,i)=>{const z=Math.abs(Date.parse(d)-t);if(z<dist){dist=z;b=i}});return b}
 function clamp(dates,a,b,min=60){let lo=nearest(dates,a),hi=nearest(dates,b);if(lo>hi)[lo,hi]=[hi,lo];const need=Math.min(min,dates.length);if(hi-lo+1<need){hi=Math.min(dates.length-1,lo+need-1);lo=Math.max(0,hi-need+1)}return[dates[lo],dates[hi]]}
-function preset(dates,key){if(key==="ALL")return[dates[0],dates.at(-1)];const days={1Y:365,3Y:1095,5Y:1826}[key];const d=new Date(Date.parse(dates.at(-1))-days*86400000).toISOString().slice(0,10);return[dates[Math.max(0,nearest(dates,d))],dates.at(-1)]}
+function preset(dates,key){if(key==="ALL")return[dates[0],dates.at(-1)];const days={"1Y":365,"3Y":1095,"5Y":1826}[key];const d=new Date(Date.parse(dates.at(-1))-days*86400000).toISOString().slice(0,10);return[dates[Math.max(0,nearest(dates,d))],dates.at(-1)]}
 function bindTabs(){$$(".tab").forEach(b=>b.onclick=()=>{$$(".tab").forEach(x=>x.classList.remove("active"));$$(".panel").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("#"+b.dataset.tab).classList.add("active");setTimeout(()=>window.dispatchEvent(new Event("resize")),80)})}
 
 let S,R,T,M,A,MI,TR,FST,FNAV,FTR,ACC,SPEC,historyRange;
