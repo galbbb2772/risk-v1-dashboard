@@ -1,0 +1,25 @@
+{
+  "strategy": "Risk V1 Strict Next-Open / 10-14",
+  "universe": [
+    "US stock-like common equities",
+    "Price >= $5",
+    "ADV20 proxy >= $20M/day"
+  ],
+  "signal": [
+    "Close < EMA20",
+    "ATR14 / Close <= 5%",
+    "Distance to prior 20d high <= 12%",
+    "RSI14 < 30",
+    "MACD histogram improving",
+    "Volume > prior 20d average"
+  ],
+  "ranking": "Equal-percentile mean of MACD repair strength, structural integrity (distance to prior high), and liquidity; tie-break by ADV20 then symbol.",
+  "market_risk": "Equal-weight eligible-stock close-to-close return; rolling 20-session sample stdev annualized by sqrt(252).",
+  "slots": {
+    "vol<10%": 1,
+    "10%-14%": 2,
+    "vol>=14%": 3
+  },
+  "execution": "T-close signal -> T+1 regular-session open -> original T+5 regular-session close; no fixed stop/take-profit; 10 bps round-trip research cost.",
+  "cash_layer": "Canonical alpha uses 0% cash yield. 3M Treasury overlay is tracked separately."
+}
