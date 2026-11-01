@@ -357,7 +357,31 @@ function renderTrades(filter=""){
   ].join("");
   Plotly.react("tradeHist",[{x:TRADES.map(r=>num(r.net_return)*100),type:"histogram",nbinsx:40,name:"Net return",marker:{color:COLORS.strict}}],{...baseLayout,showlegend:false,xaxis:{...baseLayout.xaxis,title:"Trade net return %"},yaxis:{...baseLayout.yaxis,title:"Count"}},plotCfg);
   const yr={};TRADES.forEach(r=>{const y=(r.signal_date||"").slice(0,4);yr[y]=(yr[y]||0)+1});
-  Plotly.react("tradeYearChart",[{x:Object.keys(yr),y:Object.values(yr),type:"bar",marker:{color:COLORS.tbill},name:"Trades"}],{...baseLayout,showlegend:false,yaxis:{...baseLayout.yaxis,title:"Trades"}},plotCfg);
+  const years=Object.keys(yr).sort(),yearCounts=years.map(y=>yr[y]);
+  Plotly.react("tradeYearChart",[{
+    x:years,
+    y:yearCounts,
+    type:"bar",
+    name:"Trades",
+    opacity:1,
+    marker:{
+      color:years.map(()=>COLORS.tbill),
+      opacity:1,
+      line:{color:"#d9e7f8",width:1}
+    },
+    text:yearCounts.map(String),
+    textposition:"outside",
+    textfont:{color:"#edf4ff",size:12},
+    cliponaxis:false,
+    hovertemplate:"%{x}: %{y} trades<extra></extra>"
+  }],{
+    ...baseLayout,
+    showlegend:false,
+    bargap:.24,
+    xaxis:{...baseLayout.xaxis,type:"category",categoryorder:"array",categoryarray:years,title:"Signal year"},
+    yaxis:{...baseLayout.yaxis,title:"Trades",rangemode:"tozero",dtick:10,gridcolor:"#182235"},
+    margin:{...baseLayout.margin,t:38}
+  },plotCfg);
   $("#tradeCount").textContent=rows.length+" / "+TRADES.length;
   $("#tradeTable").innerHTML=table(rows,[["Symbol",r=>esc(r.symbol)],["Slot",r=>r.slot],["Signal",r=>r.signal_date],["Entry",r=>r.entry_date],["Entry Open",r=>fmt(r.entry_open,2)],["Exit",r=>r.exit_date],["Exit Close",r=>fmt(r.exit_close,2)],["Net Return",r=>pct(num(r.net_return)*100)],["Rank",r=>fmt(r.rank_score,3)],["Vol20",r=>pct(num(r.vol20)*100)]]);
 }
