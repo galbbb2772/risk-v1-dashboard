@@ -356,30 +356,32 @@ function renderTrades(filter=""){
     metric("股票数",new Set(TRADES.map(r=>r.symbol)).size),metric("首个信号",TRADES[0]?.signal_date||"—"),metric("最后信号",TRADES.at(-1)?.signal_date||"—")
   ].join("");
   Plotly.react("tradeHist",[{x:TRADES.map(r=>num(r.net_return)*100),type:"histogram",nbinsx:40,name:"Net return",marker:{color:COLORS.strict}}],{...baseLayout,showlegend:false,xaxis:{...baseLayout.xaxis,title:"Trade net return %"},yaxis:{...baseLayout.yaxis,title:"Count"}},plotCfg);
-  const yr={};TRADES.forEach(r=>{const y=(r.signal_date||"").slice(0,4);yr[y]=(yr[y]||0)+1});
+  // Annual trade count must follow actual executions (entry_date), not signal_date.
+  // This matters for next-open trades that cross a year boundary.
+  const yr={};TRADES.forEach(r=>{const y=(r.entry_date||r.signal_date||"").slice(0,4);if(y)yr[y]=(yr[y]||0)+1});
   const years=Object.keys(yr).sort(),yearCounts=years.map(y=>yr[y]);
   Plotly.react("tradeYearChart",[{
     x:years,
     y:yearCounts,
     type:"bar",
-    name:"Trades",
+    name:"Executed trades",
     opacity:1,
     marker:{
-      color:years.map(()=>COLORS.tbill),
+      color:COLORS.tbill,
       opacity:1,
-      line:{color:"#d9e7f8",width:1}
+      line:{color:"#d9e7f8",width:1.2}
     },
     text:yearCounts.map(String),
     textposition:"outside",
     textfont:{color:"#edf4ff",size:12},
     cliponaxis:false,
-    hovertemplate:"%{x}: %{y} trades<extra></extra>"
+    hovertemplate:"%{x}: %{y} executed trades<extra></extra>"
   }],{
     ...baseLayout,
     showlegend:false,
     bargap:.24,
-    xaxis:{...baseLayout.xaxis,type:"category",categoryorder:"array",categoryarray:years,title:"Signal year"},
-    yaxis:{...baseLayout.yaxis,title:"Trades",rangemode:"tozero",dtick:10,gridcolor:"#182235"},
+    xaxis:{...baseLayout.xaxis,type:"category",categoryorder:"array",categoryarray:years,title:"Entry year"},
+    yaxis:{...baseLayout.yaxis,title:"Executed trades",rangemode:"tozero",dtick:10,gridcolor:"#182235"},
     margin:{...baseLayout.margin,t:38}
   },plotCfg);
   $("#tradeCount").textContent=rows.length+" / "+TRADES.length;
