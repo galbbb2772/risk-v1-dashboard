@@ -127,6 +127,35 @@ if(!/^2026-0[78]-|^2026-08-/.test(capRange.start)||capRange.end!=="2026-09-11")
   throw new Error("Capital 1M range unexpected: "+JSON.stringify(capRange));
 assertHealthy("capitalNavChart after 1M",await plotHealth("capitalNavChart",2),2);
 
+// Trades annual bars: exact counts and uniform opacity.
+await page.click('.tab[data-tab="trades"]');
+await page.waitForFunction(()=>document.querySelector("#tradeYearChart")?.data?.length>=1,{timeout:10000});
+await page.waitForSelector("#tradeYearChart .barlayer .point path",{timeout:10000});
+await new Promise(r=>setTimeout(r,150));
+const tradeBars=await page.$eval("#tradeYearChart",el=>{
+  const paths=[...el.querySelectorAll(".barlayer .trace .point path")];
+  return {
+    years:el.data?.[0]?.x,
+    counts:el.data?.[0]?.y,
+    traceOpacity:el.data?.[0]?.opacity,
+    markerOpacity:el.data?.[0]?.marker?.opacity,
+    barCount:paths.length,
+    styles:paths.map(p=>{
+      const cs=getComputedStyle(p);
+      return {opacity:cs.opacity,fillOpacity:cs.fillOpacity,fill:cs.fill,stroke:cs.stroke};
+    }),
+    labels:[...el.querySelectorAll(".barlayer .bartext")].map(n=>n.textContent)
+  };
+});
+const expectedYears=["2019","2020","2021","2022","2023","2024","2025","2026"];
+const expectedCounts=[7,19,42,35,59,60,56,30];
+if(JSON.stringify(tradeBars.years)!==JSON.stringify(expectedYears)||JSON.stringify(tradeBars.counts)!==JSON.stringify(expectedCounts))
+  throw new Error("Annual trade counts mismatch: "+JSON.stringify(tradeBars));
+if(tradeBars.barCount!==8) throw new Error("Expected 8 annual bars: "+JSON.stringify(tradeBars));
+if(tradeBars.styles.some(x=>Number(x.opacity)!==1||Number(x.fillOpacity)!==1))
+  throw new Error("Annual bars are visually faded: "+JSON.stringify(tradeBars));
+if(tradeBars.labels.length<8) throw new Error("Annual count labels missing: "+JSON.stringify(tradeBars));
+
 // Main history must remain readable and not contain Capital.
 await page.click('.tab[data-tab="history"]');
 await new Promise(r=>setTimeout(r,150));
