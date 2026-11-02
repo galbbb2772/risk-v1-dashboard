@@ -1,0 +1,57 @@
+{
+  "schema": "RECOVERED_CORE_V1_RISK_DASHBOARD_EXPORT_V1",
+  "status": {
+    "schema": "RECOVERED_CORE_V1_DASHBOARD_STATUS_V1",
+    "lineage": "RECOVERED-CORE-V1",
+    "source_repo": "galbbb2772/box-strategy-lab",
+    "freeze_date": "2026-11-02",
+    "first_eligible_signal_rule": "signal_date > 2026-11-02",
+    "state": "FORWARD_VALIDATED_AWAITING_FIRST_ELIGIBLE_SESSION",
+    "market_last": null,
+    "risk_market_last": null,
+    "risk_status_market_last": null,
+    "risk_identity_gate_pass": null,
+    "risk_core_sync_pass": null,
+    "prospective_signal_rows": 0,
+    "prospective_nav_rows": 0,
+    "prospective_trade_state_rows": 0,
+    "account_summary_rows": 0,
+    "accounts": [
+      "CORE_ONLY",
+      "CORE_PLUS_RISK_T5",
+      "CORE_PLUS_RISK_T6"
+    ],
+    "data_ready": false,
+    "pre_forward_validation_pass": true,
+    "validation": {
+      "identity_probe": {
+        "status": "PASS",
+        "run_id": 41431319644
+      },
+      "no_backfill_gate": {
+        "status": "PASS",
+        "run_id": 41431319596
+      },
+      "contract_tests": {
+        "status": "PASS",
+        "run_id": 41432039432
+      },
+      "integration_smoke": {
+        "status": "PASS",
+        "run_id": 41432039355
+      }
+    },
+    "legacy_core_claim": false,
+    "legacy_nav_inherited": false,
+    "historical_backfill_forbidden": true,
+    "legacy_capital_layer_relation": "REFERENCE_ONLY_NOT_STITCHED",
+    "note": "Recovered Core V1 is a separately frozen prospective lineage. Its NAV starts at 1.0 after the 2026-11-02 freeze and is never stitched to the legacy Capital Layer 5.28x history."
+  },
+  "files": [
+    "recovered_core_status.json",
+    "recovered_core_account_summary.csv",
+    "recovered_core_daily.csv",
+    "recovered_core_trades.csv",
+    "recovered_core_signals.csv"
+  ]
+}
