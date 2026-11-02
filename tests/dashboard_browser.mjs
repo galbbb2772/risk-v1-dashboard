@@ -156,6 +156,21 @@ if(tradeBars.styles.some(x=>Number(x.opacity)!==1||Number(x.fillOpacity)!==1))
   throw new Error("Annual bars are visually faded: "+JSON.stringify(tradeBars));
 if(tradeBars.labels.length<8) throw new Error("Annual count labels missing: "+JSON.stringify(tradeBars));
 
+
+// Recovered Core V1 Forward
+await page.click('.tab[data-tab="forward"]');
+await page.waitForFunction(()=>document.querySelector("#recoveredCoreCards")?.textContent?.includes("2026-11-02"),{timeout:10000});
+const recoveredForward=await page.evaluate(()=>({
+  cards:document.querySelector("#recoveredCoreCards")?.textContent||"",
+  empty:document.querySelector("#recoveredCoreEmpty")?.textContent||"",
+  chartRows:(document.querySelector("#recoveredCoreChart")?.data||[]).length,
+  note:document.querySelector("#recoveredCoreNote")?.textContent||""
+}));
+if(!recoveredForward.cards.includes("2026-11-02")) throw new Error("Recovered Core Forward browser status missing: "+JSON.stringify(recoveredForward));
+if(recoveredForward.chartRows!==0) throw new Error("Recovered Core Forward should have no official chart before first eligible sample: "+JSON.stringify(recoveredForward));
+if(!recoveredForward.empty.includes("等待首个正式")) throw new Error("Recovered Core pending state missing: "+JSON.stringify(recoveredForward));
+if(!recoveredForward.note.includes("不与本 Forward 曲线拼接")&&!recoveredForward.note.includes("不与本 Forward")) throw new Error("Recovered Core lineage separation note missing: "+JSON.stringify(recoveredForward));
+
 // Main history must remain readable and not contain Capital.
 await page.click('.tab[data-tab="history"]');
 await new Promise(r=>setTimeout(r,150));
