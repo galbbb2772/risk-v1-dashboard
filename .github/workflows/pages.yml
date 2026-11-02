@@ -43,6 +43,8 @@ jobs:
           python -m json.tool data/account_state.json >/dev/null
           python -m json.tool data/version_registry.json >/dev/null
           python -m json.tool data/capital_audit_metrics.json >/dev/null
+          python -m json.tool data/recovered_core_status.json >/dev/null
+          python -m json.tool data/recovered_core_manifest.json >/dev/null
           test -f index.html
           test -f data/risk_daily_mtm.csv
           test -f data/treasury_daily_nav.csv
@@ -53,6 +55,10 @@ jobs:
           test -f data/capital_annual_performance.csv
           test -f data/capital_daily_curve.csv
           test -f data/crisis_windows.csv
+          test -f data/recovered_core_account_summary.csv
+          test -f data/recovered_core_daily.csv
+          test -f data/recovered_core_trades.csv
+          test -f data/recovered_core_signals.csv
       - uses: actions/configure-pages@v5
         with:
           enablement: true
