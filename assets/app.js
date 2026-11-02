@@ -157,7 +157,7 @@ function bindTabs(){
   });
 }
 
-let S,RISK,TBILL,MODEL,ANNUAL,MONTHLY,TRADES,FSTAT,FNAV,FTR,ACCOUNT,SPEC,EXEC,LEGACY,LEGACYDD,VERS,CAM,CMC,CAPAN,CRS,CDDA,CDDE,CCORR,CREG,CWORST,CRISIS,CAPDAILY;
+let S,RISK,TBILL,MODEL,ANNUAL,MONTHLY,TRADES,FSTAT,FNAV,FTR,ACCOUNT,SPEC,EXEC,LEGACY,LEGACYDD,VERS,CAM,CMC,CAPAN,CRS,CDDA,CDDE,CCORR,CREG,CWORST,CRISIS,CAPDAILY,RCSTAT,RCSUM,RCDAILY,RCTRADES,RCSIGNALS;
 let historyRange,capitalRange=null;
 
 function renderHistory(range){
@@ -388,6 +388,94 @@ function renderTrades(filter=""){
   $("#tradeTable").innerHTML=table(rows,[["Symbol",r=>esc(r.symbol)],["Slot",r=>r.slot],["Signal",r=>r.signal_date],["Entry",r=>r.entry_date],["Entry Open",r=>fmt(r.entry_open,2)],["Exit",r=>r.exit_date],["Exit Close",r=>fmt(r.exit_close,2)],["Net Return",r=>pct(num(r.net_return)*100)],["Rank",r=>fmt(r.rank_score,3)],["Vol20",r=>pct(num(r.vol20)*100)]]);
 }
 
+function renderRecoveredCoreForward(){
+  const accountLabel={
+    CORE_ONLY:"Core Only",
+    CORE_PLUS_RISK_T5:"Core + Risk T5",
+    CORE_PLUS_RISK_T6:"Core + Risk T6"
+  };
+  const accountColor={
+    CORE_ONLY:COLORS.gold,
+    CORE_PLUS_RISK_T5:COLORS.tbill,
+    CORE_PLUS_RISK_T6:COLORS.t6
+  };
+  const validation=RCSTAT.pre_forward_validation_pass?"PASS":"CHECK";
+  $("#recoveredCoreCards").innerHTML=[
+    metric("状态",RCSTAT.state||"—"),
+    metric("Pre-Forward 验证",validation,validation==="PASS"?"good":"warn"),
+    metric("Freeze",RCSTAT.freeze_date||"—"),
+    metric("Market as-of",RCSTAT.market_last||"PENDING"),
+    metric("正式 Signals",RCSTAT.prospective_signal_rows??0),
+    metric("NAV 行",RCSTAT.prospective_nav_rows??0)
+  ].join("");
+
+  if(RCDAILY.length){
+    $("#recoveredCoreEmpty").style.display="none";
+    const groups={};
+    RCDAILY.forEach(r=>(groups[r.account]??=[]).push(r));
+    const traces=Object.entries(groups).map(([account,rows])=>({
+      x:rows.map(r=>r.date),
+      y:rows.map(r=>num(r.nav)),
+      name:accountLabel[account]||account,
+      type:"scatter",mode:"lines+markers",
+      line:{width:account==="CORE_ONLY"?2.2:2.6,color:accountColor[account]||COLORS.muted}
+    }));
+    const dates=[...new Set(RCDAILY.map(r=>r.date))].sort();
+    Plotly.react("recoveredCoreChart",traces,{
+      ...baseLayout,
+      xaxis:boundedX(dates,null,true),
+      yaxis:{...baseLayout.yaxis,title:"Prospective NAV",fixedrange:true}
+    },plotCfg);
+    bindBoundedTimeZoom("recoveredCoreChart",dates,Math.min(10,dates.length));
+  }else{
+    Plotly.purge("recoveredCoreChart");
+    $("#recoveredCoreEmpty").style.display="block";
+    $("#recoveredCoreEmpty").innerHTML="<b>等待首个正式 Recovered Core Forward 样本</b><br>规则与三账户执行链已经验证通过；只有 signal_date &gt; 2026-11-02 的真实样本才会进入这里。";
+  }
+
+  $("#recoveredCoreSummaryTable").innerHTML=RCSUM.length?table(RCSUM,[
+    ["账户",r=>esc(accountLabel[r.account]||r.account)],
+    ["NAV",r=>fmt(r.ending_nav,4)],
+    ["累计收益",r=>pct(r.return_pct)],
+    ["MaxDD",r=>pct(r.maxdd_pct)],
+    ["平均总暴露",r=>pct(r.avg_total_exposure_pct)],
+    ["Core暴露",r=>pct(r.avg_core_exposure_pct)],
+    ["Risk暴露",r=>pct(r.avg_risk_exposure_pct)],
+    ["Core平仓",r=>r.core_closed||0],
+    ["Risk平仓",r=>r.risk_closed||0],
+    ["Open",r=>r.open_positions||0]
+  ]):"<div class='empty' style='display:block'>尚未产生正式三账户 NAV。</div>";
+
+  const tradeRows=[...RCTRADES].sort((a,b)=>String(b.entry_date||b.signal_date||"").localeCompare(String(a.entry_date||a.signal_date||"")));
+  $("#recoveredCoreTradeTable").innerHTML=tradeRows.length?table(tradeRows.slice(0,100),[
+    ["账户",r=>esc(accountLabel[r.account]||r.account)],
+    ["类型",r=>esc(r.kind||"—")],
+    ["Symbol",r=>esc(r.symbol||"—")],
+    ["Signal",r=>esc(r.signal_date||"—")],
+    ["Entry",r=>esc(r.entry_date||"—")],
+    ["Exit",r=>esc(r.exit_date||"—")],
+    ["Net",r=>Number.isFinite(num(r.net_return))?pct(num(r.net_return)*100):"—"],
+    ["状态",r=>esc(r.status||"—")]
+  ]):"<div class='empty' style='display:block'>暂无正式持仓或完成交易。</div>";
+
+  $("#recoveredCoreSignalTable").innerHTML=RCSIGNALS.length?table(RCSIGNALS.slice().reverse().slice(0,100),[
+    ["机制",r=>esc(r.mechanism||"—")],
+    ["Symbol",r=>esc(r.symbol||"—")],
+    ["Signal",r=>esc(r.signal_date||"—")],
+    ["Entry",r=>esc(r.entry_date||"—")],
+    ["Position",r=>fmt(r.position,3)],
+    ["Occupancy",r=>fmt(r.occupancy,3)],
+    ["StopATR",r=>fmt(r.stop_atr,3)],
+    ["Rank",r=>esc(r.rank||"—")]
+  ]):"<div class='empty' style='display:block'>暂无 post-freeze 正式信号。</div>";
+
+  $("#recoveredCoreNote").innerHTML=
+    "<b>治理：</b> Recovered Core V1 是独立 prospective lineage；NAV 从 1.0 开始，禁止历史回填。"+
+    "<br><b>三账户：</b> Core Only / Core + Risk T5 / Core + Risk T6；Core-first cash、无杠杆。"+
+    "<br><b>旧 Capital Layer：</b> 5.2803x 仅作为历史研究参考，不与本 Forward 曲线拼接。"+
+    "<br><b>同步：</b> "+esc(RCSTAT.risk_core_sync_pass===true?"Core/Risk 同日 PASS":(RCSTAT.market_last?"等待同日门槛":"等待首个 eligible session"));
+}
+
 function renderForward(){
   $("#forwardCards").innerHTML=[
     metric("状态",FSTAT.state),metric("验证",FSTAT.validation?.status||"—",FSTAT.validation?.status==="PASS"?"good":"warn"),
@@ -404,6 +492,7 @@ function renderForward(){
   $("#slotTable").innerHTML=table(ACCOUNT.slots,[["Slot",r=>r.slot],["状态",r=>esc(r.status)],["Symbol",r=>esc(r.symbol||"—")],["Cash",r=>pct(num(r.cash)*100)],["Entry date",r=>esc(r.entry_date||"—")],["Entry price",r=>fmt(r.entry_price,2)]]);
   $("#forwardTradeTable").innerHTML=FTR.length?table(FTR,[["Symbol",r=>esc(r.symbol)],["Slot",r=>r.slot],["Signal",r=>r.signal_date],["Entry",r=>r.entry_date],["Exit",r=>r.exit_date],["Net Return",r=>pct(num(r.net_return)*100)],["Status",r=>esc(r.status)]]):"<div class='empty' style='display:block'>暂无正式 Forward 交易。</div>";
   $("#forwardNote").innerHTML="<b>Forward 规则：</b> "+esc(FSTAT.first_official_forward_rule)+"<br><br><b>当前阻塞：</b> "+(FSTAT.remaining_blockers||[]).map(esc).join(" · ");
+  renderRecoveredCoreForward();
 }
 
 function renderRules(){
@@ -413,14 +502,15 @@ function renderRules(){
 
 (async()=>{
   bindTabs();
-  [S,RISK,TBILL,MODEL,ANNUAL,MONTHLY,TRADES,FSTAT,FNAV,FTR,ACCOUNT,SPEC,EXEC,LEGACY,LEGACYDD,VERS,CAM,CMC,CAPAN,CRS,CDDA,CDDE,CCORR,CREG,CWORST,CRISIS,CAPDAILY]=await Promise.all([
+  [S,RISK,TBILL,MODEL,ANNUAL,MONTHLY,TRADES,FSTAT,FNAV,FTR,ACCOUNT,SPEC,EXEC,LEGACY,LEGACYDD,VERS,CAM,CMC,CAPAN,CRS,CDDA,CDDE,CCORR,CREG,CWORST,CRISIS,CAPDAILY,RCSTAT,RCSUM,RCDAILY,RCTRADES,RCSIGNALS]=await Promise.all([
     json("data/summary.json"),csv("data/risk_daily_mtm.csv"),csv("data/treasury_daily_nav.csv"),csv("data/model_metrics.csv"),csv("data/annual_returns.csv"),csv("data/monthly_vs_indices.csv"),csv("data/trades_308.csv"),
     json("data/forward_status.json"),csv("data/forward_daily_nav.csv"),csv("data/forward_trades.csv"),json("data/account_state.json"),json("data/strategy_spec.json"),
     csv("data/execution_variants_daily.csv"),csv("data/legacy_monthly_cumulative_pct.csv"),csv("data/legacy_monthly_drawdown_pct.csv"),json("data/version_registry.json"),
     json("data/capital_audit_metrics.json"),csv("data/capital_marginal_curve.csv"),csv("data/capital_annual_performance.csv"),csv("data/capital_return_sources.csv"),
-    csv("data/capital_drawdown_attribution.csv"),csv("data/capital_drawdown_episodes.csv"),csv("data/capital_correlation_summary.csv"),csv("data/capital_market_regime_summary.csv"),csv("data/capital_worst_20_days.csv"),csv("data/crisis_windows.csv"),csv("data/capital_daily_curve.csv")
+    csv("data/capital_drawdown_attribution.csv"),csv("data/capital_drawdown_episodes.csv"),csv("data/capital_correlation_summary.csv"),csv("data/capital_market_regime_summary.csv"),csv("data/capital_worst_20_days.csv"),csv("data/crisis_windows.csv"),csv("data/capital_daily_curve.csv"),
+    json("data/recovered_core_status.json"),csv("data/recovered_core_account_summary.csv"),csv("data/recovered_core_daily.csv"),csv("data/recovered_core_trades.csv"),csv("data/recovered_core_signals.csv")
   ]);
-  $("#asof").textContent="HIST "+S.historical_window.end+" · FWD "+(FSTAT.official_nav_rows?FNAV.at(-1)?.date:"PENDING");
+  $("#asof").textContent="HIST "+S.historical_window.end+" · RISK FWD "+(FSTAT.official_nav_rows?FNAV.at(-1)?.date:"PENDING")+" · CORE FWD "+(RCSTAT.market_last||"PENDING");
   renderHistory([EXEC[0].date,EXEC.at(-1).date]);bindHistory();
   window.__dashboardReady=true;
   $("#tradeSearch").oninput=e=>{
