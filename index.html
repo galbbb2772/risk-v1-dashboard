@@ -158,16 +158,38 @@
     <div id="forwardCards" class="kpis"></div>
     <div class="card section">
       <div class="sectionHead">
-        <div><h2>正式 Forward OOS NAV</h2><div class="tiny">只允许 recovered engine 之后的真实扫描写入；历史数据永不回填。</div></div>
+        <div><h2>Risk V1 独立 Forward OOS NAV</h2><div class="tiny">独立 Risk Alpha 的正式 Forward；历史数据永不回填。</div></div>
       </div>
       <div id="forwardChart" class="chart"></div>
       <div id="forwardEmpty" class="empty"></div>
     </div>
     <div class="grid2 section">
-      <div class="card"><h2>三槽位账户</h2><div id="slotTable" class="tablewrap"></div></div>
-      <div class="card"><h2>正式 Forward 交易</h2><div id="forwardTradeTable" class="tablewrap"></div></div>
+      <div class="card"><h2>Risk V1 三槽位账户</h2><div id="slotTable" class="tablewrap"></div></div>
+      <div class="card"><h2>Risk V1 正式 Forward 交易</h2><div id="forwardTradeTable" class="tablewrap"></div></div>
     </div>
     <div id="forwardNote" class="note section"></div>
+
+    <div class="card section">
+      <div class="sectionHead">
+        <div>
+          <h2>Recovered Core V1 · 三账户 Shared-Cash Forward</h2>
+          <div class="tiny">独立 prospective lineage：Core Only / Core + Risk T5 / Core + Risk T6。Freeze = 2026-11-02；不继承旧 Capital Layer 5.28x NAV。</div>
+        </div>
+        <span class="pill">NEW OOS LINEAGE</span>
+      </div>
+      <div id="recoveredCoreCards" class="kpis"></div>
+      <div id="recoveredCoreChart" class="chart"></div>
+      <div id="recoveredCoreEmpty" class="empty"></div>
+    </div>
+    <div class="grid2 section">
+      <div class="card"><h2>三账户对比</h2><div id="recoveredCoreSummaryTable" class="tablewrap"></div></div>
+      <div class="card"><h2>当前 / 已完成持仓与交易</h2><div id="recoveredCoreTradeTable" class="tablewrap"></div></div>
+    </div>
+    <div class="card section">
+      <h2>Recovered Core 最新信号</h2>
+      <div id="recoveredCoreSignalTable" class="tablewrap"></div>
+    </div>
+    <div id="recoveredCoreNote" class="note section"></div>
   </section>
 
   <section id="rules" class="panel">
@@ -177,6 +199,6 @@
     </div>
   </section>
 </div>
-<script src="assets/app.js?v=20261101-1"></script>
+<script src="assets/app.js?v=20261102-1"></script>
 </body>
 </html>
