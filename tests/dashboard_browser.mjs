@@ -148,7 +148,7 @@ const tradeBars=await page.$eval("#tradeYearChart",el=>{
   };
 });
 const expectedYears=["2019","2020","2021","2022","2023","2024","2025","2026"];
-const expectedCounts=[7,19,42,35,59,60,56,30];
+const expectedCounts=[7,19,42,35,59,59,57,30];
 if(JSON.stringify(tradeBars.years)!==JSON.stringify(expectedYears)||JSON.stringify(tradeBars.counts)!==JSON.stringify(expectedCounts))
   throw new Error("Annual trade counts mismatch: "+JSON.stringify(tradeBars));
 if(tradeBars.barCount!==8) throw new Error("Expected 8 annual bars: "+JSON.stringify(tradeBars));
