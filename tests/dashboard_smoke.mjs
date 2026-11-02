@@ -99,6 +99,17 @@ for(const key of ["1M","6M","12M","ALL"]){
   if(Date.parse(a)>Date.parse(b)) throw new Error("Reversed Capital range after "+key);
 }
 
+
+const forwardTab=document.querySelector('.tab[data-tab="forward"]');
+if(!forwardTab) throw new Error("Forward tab missing");
+forwardTab.click();
+await new Promise(r=>setTimeout(r,120));
+if(!document.querySelector("#forward")?.classList.contains("active")) throw new Error("Forward panel did not activate");
+const recoveredText=document.querySelector("#recoveredCoreCards")?.textContent||"";
+if(!recoveredText.includes("2026-11-02")) throw new Error("Recovered Core Forward status did not render: "+recoveredText);
+if((ensurePlotEl("recoveredCoreChart").data||[]).length!==0) throw new Error("Recovered Core chart must stay empty before first eligible sample");
+if(!document.querySelector("#recoveredCoreEmpty")?.textContent.includes("等待首个正式")) throw new Error("Recovered Core pending message missing");
+
 const relayoutHandlers=hist.__handlers?.plotly_relayout||[];
 for(const cb of relayoutHandlers){
   cb({"xaxis.range[0]":"2026-04-01 00:00:00","xaxis.range[1]":"2026-09-11 00:00:00"});
